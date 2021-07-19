@@ -1,0 +1,70 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="x-ua-compatible" content="ie=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DCG | Design</title>
+    <link rel="stylesheet" href="css/markdown.css">
+    <link href="https://fonts.googleapis.com/css2?family=Nunito" rel="stylesheet">
+    <style>
+      .markdown-body {
+        font-family: 'Nunito', sans-serif !important;
+      }
+    </style>
+  </head>
+  <body style="background-color:whitesmoke;">
+      <div class="container-lg px-3 my-5 markdown-body">
+
+        <dcg dcg-json="jsonData">
+          <h1>Dynamic Content {{jsonData.text}}</h1>
+        </dcg>
+
+        <dcg dcg-html="rawHtml">
+        </dcg>
+
+        <hr>
+
+        <h2>Basic Tests / Examples</h2>
+
+        <p>And this paragraph is written on design.html</p>
+
+        <dcg dcg-temp="temple" dcg-data='{"foo": "bar"}' dcg-tref>
+          <dcg dcg-src="template.html"></dcg>
+        </dcg>
+
+        <dcg dcg-temp="test" dcg-data='sweet' dcg-tref>
+          <dcg dcg-html="templateHtml2"></dcg>
+        </dcg>
+
+        <dcg dcg-json="jsonData">
+          <div class="footer border-gray-light mt-5 pt-3 text-right text-gray" dcg-attr:great="wow">
+              Test variable token: <a href="#" dcg-attr:style="color:{{jsonData.tokencolor}};">{{jsonData.test}}</a>.
+              <dcg dcg-json="base">
+                <div class="testing123">
+                  <dcg dcg-repeat="customers.data from base">
+                    <dcg dcg-temp="temple" dcg-data='{"foo": "notbar"}' dcg-tren></dcg>
+                  </dcg>
+                  <dcg dcg-repeat="customers.data from base">
+                    <dcg dcg-json="vehicles">
+                      <dcg dcg-repeat="x in cars.brands from vehicles">
+                        <a>{{vehicles.x}} - {{base.Color}} | </a>
+                      </dcg>
+                    </dcg><br><br>
+                  </dcg>
+                  <dcg dcg-json="vehicles">
+                    <dcg dcg-repeat="x in cars.models from vehicles">
+                      <a>{{vehicles.x}}</a>
+                    </dcg>
+                  </dcg>
+                </div>
+
+                <br><br>{{base.person.1.name}}
+                
+              </dcg>
+          </div>
+        </dcg>
+      </div>
+    <script>document.body.innerHTML += dcg.loadTemplate({id:"test", data: {fruits:[{name:"orange", color:"orange"}, {name:"strawberry", color:"red"}]}}).innerHTML;</script>
+  </body>
+</html>
