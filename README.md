@@ -1,4 +1,4 @@
-# dcg
+# DCG
 Dynamic Content Generation (DCG) is a front-end solution for content management
 
 Documentation coming soon
