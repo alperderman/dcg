@@ -1,5 +1,5 @@
 /*!
-* Dynamic Content Generation (1.0.0) 2021/02/25
+* Dynamic Content Generation (1.0.1) 2021/07/23
 */
 var dcg = {};
 dcg.labelDesign = "dcg-design"; //design attribute: for locating design itself
@@ -37,6 +37,22 @@ dcg.getElementsByAttribute = function (x, att, val) { //get elements by their at
     }
     return arr;
 };
+dcg.getElementByAttribute = function (x, att, val) { //get the first element by its attribute and their value
+    if (!val) {val = "";}
+    var i, l, y = x.getElementsByTagName("*"), z = att.toUpperCase();
+    l = y.length;
+    var result = false;
+    for (i = -1; i < l; i += 1) {
+        if (i == -1) { y[i] = x; }
+        if (y[i].getAttribute(z) !== null) {
+            if (val == "" || y[i].getAttribute(z) == val) {
+                result = y[i];
+                break;
+            }
+        }
+    }
+    return result;
+};
 dcg.removeDuplicatesFromArray = function (arr) { //remove duplicated values from array
     var m = {}, newArr = [];
     if(arr){
@@ -61,8 +77,77 @@ dcg.getRecursiveValue = function (arr, keys, i) { //getting a value from multi-d
     }
     return val;
 };
+dcg.setNestedPropertyValue = function (obj, fields, val) { //function for setting a value deep inside an object
+  fields = fields.split('.');
+  var cur = obj,
+  last = fields.pop();
+  fields.forEach(function(field) {
+      cur[field] = {};
+      cur = cur[field];
+  });
+  cur[last] = val;
+  return obj;
+};
+dcg.convertToObject = function (obj) { //function for converting arrays into objects
+    var result = {};
+    if (Array.isArray(obj)) {
+        obj = toObject(obj);
+    }
+    if (typeof obj === 'object') {
+        for (var property in obj) {
+            if (obj.hasOwnProperty(property)) {
+                result[property] = dcg.convertToObject(obj[property]);
+            }
+        }
+    } else {
+        result = obj;
+    }
+    function toObject(arr) {
+        var rv = {};
+        for (var i = 0; i < arr.length; ++i)
+            rv[i] = arr[i];
+        return rv;
+    }
+    return result;
+};
+dcg.tryParseJSON = function (str) { //function for testing JSON string
+    try {
+        var o = JSON.parse(str);
+        if (o && typeof o === "object") {
+            return o;
+        }
+    }
+    catch (e) { }
+    return str;
+};
+dcg.mergeDeep = function (target) { //function for merging multi-dimensional objects
+    var _dcg;
+    for (var _len = arguments.length, sources = new Array(_len > 1 ? _len - 1 : 0), _key = 1; _key < _len; _key++) {
+        sources[_key - 1] = arguments[_key];
+    }
+    if (!sources.length) {
+        return target;
+    }
+    var source = sources.shift();
+    if (isObject(target) && isObject(source)) {
+        for (var key in source) {
+            if (isObject(source[key])) {
+                if (!target[key]) {
+                    Object.assign(target, _defineProperty({}, key, {}));
+                }
+                dcg.mergeDeep(target[key], source[key]);
+            } else {
+                Object.assign(target, _defineProperty({}, key, source[key]));
+            }
+        }
+    }
+    function isObject(item) {
+        return item && _typeof(item) === 'object' && !Array.isArray(item);
+    }
+    return (_dcg = dcg).mergeDeep.apply(_dcg, [target].concat(sources));
+};
 dcg.renderDesign = function (src, base) { //the main render function
-    var i, externalContents, jsonContents, htmlContents, contentId, contentStyles, designLinks, designStyles, designScripts, designTemplateReferences, designTemplateRenders, designTemplate, designTemplateId, fixedResponseText, jsonTargets, jsonTarget, htmlTargets, htmlTarget;
+    var i, externalContents, jsonContents, jsonContentParse, jsonContentNested, htmlContents, contentId, contentStyles, designLinks, designStyles, designScripts, designTemplateReferences, designTemplateRenders, designTemplate, designTemplateId, fixedResponseText, jsonTargets, jsonTarget, htmlTargets, htmlTarget;
     if (typeof dcg.beforeRender != 'undefined') { //if beforeRender function is defined run it
         dcg.beforeRender();
     }
@@ -90,8 +175,10 @@ dcg.renderDesign = function (src, base) { //the main render function
         for (i = 0; i < jsonContents.length; i++) { //iterate through json contents and store them
             jsonContent = jsonContents[i];
             contentId = jsonContent.getAttribute(dcg.labelJson);
-            if (!dcg.dataJson.hasOwnProperty(contentId) && jsonContent.innerHTML != "") {
-                dcg.dataJson[contentId] = JSON.parse(jsonContent.innerHTML);
+            if (jsonContent.innerHTML != "") {
+                jsonContentParse = dcg.tryParseJSON(jsonContent.innerHTML); //check if content is a valid json, if its parse them, if it isn't store them without modification
+                jsonContentNested = dcg.setNestedPropertyValue({}, contentId, jsonContentParse); //create nested object based labelJson
+                dcg.dataJson = dcg.convertToObject(dcg.mergeDeep(dcg.dataJson, jsonContentNested)); //merge content with dataJson and convert all arrays to objects in order to nest them manually later on
             }
         }
         if (src) { //check if source exists
@@ -151,13 +238,7 @@ dcg.renderDesign = function (src, base) { //the main render function
                                 designTemplateId = designTemplate.getAttribute(dcg.labelTemplate);
                                 designTemplate.outerHTML = dcg.loadTemplate({id : designTemplateId, obj : designTemplate}).innerHTML;
                             }
-                            for (contentId in dcg.dataJson) { //insert json contents, the tokens
-                                jsonTargets = dcg.getElementsByAttribute(document.body, dcg.labelJson, contentId);
-                                for (i = 0; i < jsonTargets.length; i++) {
-                                    jsonTarget = jsonTargets[i];
-                                    jsonTarget.outerHTML = dcg.displayTokens({id: contentId, data: dcg.dataJson[contentId], obj: jsonTarget}).innerHTML;
-                                }
-                            }
+                            document.body = dcg.displayTokens(); //insert json contents, the tokens
                             document.body.innerHTML = replace_attr(); //replace custom attributes
                             dcg.loadScripts(document.body.getElementsByTagName("script"), function () { //inject scripts from design
                                 //remove attributes
@@ -197,7 +278,7 @@ dcg.renderDesign = function (src, base) { //the main render function
     }
     function replace_attr(html) { //replace custom attributes
         if (!html) {html = document.body.cloneNode(true).innerHTML;}
-        var i, newHtml = html, match, matches = [], oldAttr, newAttr, replaceAttr, regex = new RegExp("(?:<)[^>]*((?:"+dcg.labelAttribute+")(?:[^>]*?)(?:=)(?:\"|')(?:[^>]*?)(?:\"|'))[^>]*(?:>)","gim");
+        var i, newHtml = html, match, matches = [], oldAttr, newAttr, replaceAttr, regex = new RegExp("((?:"+dcg.labelAttribute+")(?:[^>]*?)(?:=)(?:\"|')(?:[^>]*?)(?:\"|'))","gim");
         while (match = regex.exec(newHtml)) {
             matches.push(match[1]);
         }
@@ -211,89 +292,84 @@ dcg.renderDesign = function (src, base) { //the main render function
         return newHtml;
     }
 };
-dcg.displayTokens = function (arg) { //display tokens function inputs are: arg.id, arg.data, arg.obj
-    var i, ii, iii, hasId = true, objClone, objRepeats, objRepeat, objRepeatClone, objRepeatCloneHtml, objRef, objRefSplit, objRefSplitLimit, objRefSplitDot, dataChild, dataTokens, dataToken, tokens, token, tokenRegex, tokenDelimiterRegex = new RegExp(dcg.tokenOpen+"[\\s\\S]*?"+dcg.tokenClose, "g"), prop, propSplit, propIndex;
-    if (!arg.hasOwnProperty("id")) {hasId = false;} //if id doesn't exists set hasId to false
-    if (!arg.hasOwnProperty("data")) {return false;} //if data is not defined stop the function
-    if (!arg.hasOwnProperty("obj")) {return false;} //if element is not defined stop the function
-    objClone = arg.obj.cloneNode(true); //clone the element
-    if (!hasId) { //if id is not defined then don't check for id of the tokens used for template tokens because template tokens doesn't have id
-        propIndex = 0;
-        objRefSplitLimit = 1;
-    } else { //if id exists then set the split limit higher so it can detect the id correctly
-        propIndex = 1;
-        objRefSplitLimit = 3;
+dcg.displayTokens = function (arg) { //display tokens function inputs are: arg.data, arg.obj
+    var i, tokens, token, tokenPure, tokenPureSplit, tokenData, tokenRegex, tokenDelimiterRegex = new RegExp(dcg.tokenOpen+"[\\s\\S]*?"+dcg.tokenClose, "g");
+    if (!arg) {arg = {};}
+    if (!arg.hasOwnProperty("data")) {arg.data = dcg.dataJson;} //default data as dcg.dataJson
+    if (!arg.hasOwnProperty("obj")) {arg.obj = document.body;} //default element as document.body
+    arg.obj = arg.obj.cloneNode(true); //clone the element
+    tokens = dcg.removeDuplicatesFromArray(arg.obj.innerHTML.match(tokenDelimiterRegex)); //get all tokens from the element and remove duplicated tokens
+    for (i = 0;i < tokens.length;i++) { //iterate through tokens
+        token = tokens[i];
+        tokenPure = token.substring(2, token.length-2); //remove the token delimiters
+        tokenPureSplit = tokenPure.split(".");
+        if(arg.data.hasOwnProperty(tokenPureSplit[0])){
+            tokenData = dcg.getRecursiveValue(arg.data, tokenPureSplit, 0); //split the token using dots and recursively get the value from the data
+            if(!(typeof tokenData === 'object')){
+                tokenRegex = new RegExp(token, 'g');
+                arg.obj.innerHTML = arg.obj.innerHTML.replace(tokenRegex, tokenData); //replace the token with the value using regex
+            }
+        }
     }
-    objRepeats = dcg.getElementsByAttribute(objClone, dcg.labelRepeat); //get the elements with repeat attribute
-    if (objRepeats.length > 0) { //if there are elements that should repeat then continue
-        for (i = 0;i < objRepeats.length;i++) { //iterate through elements
-            objRepeatCloneHtml = "";
-            objRepeat = objRepeats[i];
-            tokens = dcg.removeDuplicatesFromArray(objRepeat.innerHTML.match(tokenDelimiterRegex)); //get the tokens with regex and remove the duplicated tokens
-            objRef = objRepeat.getAttribute(dcg.labelRepeat); //get the repeat attribute's value
-            objRefSplit = objRef.split(" "); //split the value by space
-            if (tokens.length > 0) { //check if there are tokens
-                if (objRefSplit.length > objRefSplitLimit) { //check if the defined data is an array or an object by counting the splitted value if its array then continue
-                    objRefSplitDot = objRefSplit[2].split("."); //split the value again this time by dot for checking id
-                    if ((!hasId || objRefSplit[4] == arg.id) && arg.data.hasOwnProperty(objRefSplitDot[0])) { //if the extracted id from the attribute's value is the same as defined id and data has an property corresponding to attribute then continue
-                        dataTokens = dcg.getRecursiveValue(arg.data, objRefSplitDot, 0); //get the corresponding property from data
-                        for (ii = 0;ii < dataTokens.length;ii++) { //iterate through property
-                            dataToken = dataTokens[ii]; //set the token as property value
-                            objRepeatClone = objRepeat.cloneNode(true); //clone the element
-                            for (iii = 0;iii < tokens.length;iii++) { //iterate through all of the tokens
-                                token = tokens[iii];
-                                prop = token.substring(2, token.length-2); //remove delimiters from the token
-                                propSplit = prop.split("."); //split the token by dot in order to check id 
-                                if ((!hasId || propSplit[0] == arg.id) && propSplit[propIndex] == objRefSplit[0]) { //if the token id is same as defined id and the token key is same as the key defined in the repeat attribute then continue
-                                    tokenRegex = new RegExp(token, 'g'); //prepare a regex statement to replace the corresponding tokens with the data
-                                    objRepeatClone.innerHTML = objRepeatClone.innerHTML.replace(tokenRegex, dataToken); //replace the tokens
-                                }
+    recursiveReplaceRepeat();
+    function recursiveReplaceRepeat() { //replace repeats recursively
+        var i, ii, iii, arr, objRepeat, objRepeatClone, objRepeatCloneHtml, repeatAttr, repeatAttrSplit, repeatAttrSplitDot, tokenDataArray, tokenDataArrayCount, tokens, token, tokenPure, tokenPureSplit, tokenData, aliasRegex, aliasRegexMatches, aliasRegexMatch, aliasMatch, aliasReplace, aliasReplaceRegex;
+        objRepeat = dcg.getElementByAttribute(arg.obj, dcg.labelRepeat); //get the first element that has repeat attribute
+        objRepeatCloneHtml = "";
+        if (objRepeat !== false) { //if there is element with repeat attribute continue
+            repeatAttr = objRepeat.getAttribute(dcg.labelRepeat);
+            repeatAttrSplit = repeatAttr.split(" ");
+            repeatAttrSplitDot = repeatAttrSplit[0].split("."); //split the repeat attribute with spaces and dots
+            if (arg.data.hasOwnProperty(repeatAttrSplitDot[0]) && typeof arg.data[repeatAttrSplitDot[0]] === 'object') {
+                tokenDataArray = dcg.getRecursiveValue(arg.data, repeatAttrSplitDot, 0); //get the object or array from the data using splitted variable
+                tokenDataArrayCount;
+                if (!tokenDataArray.length) { //if it is an object get the keys.length, if it is an array get the length
+                    tokenDataArrayCount = Object.keys(tokenDataArray).length;
+                } else {
+                    tokenDataArrayCount = tokenDataArray.length;
+                }
+                for (i = 0;i < tokenDataArrayCount;i++) {
+                    objRepeatClone = objRepeat.cloneNode(true); //clone the element that it will be repeated
+                    tokens = dcg.removeDuplicatesFromArray(objRepeatClone.innerHTML.match(tokenDelimiterRegex)); //get all tokens inside the will be repeated element
+                    for (ii = 0;ii < tokens.length;ii++) {
+                        token = tokens[ii];
+                        tokenPure = token.substring(2, token.length-2); //remove the token delimiters
+                        tokenPureSplit = tokenPure.split(".");
+                        if (tokenPureSplit[0] == repeatAttrSplit[2]) { //check if the alias defined inside the token is same as the alias on the repeat attribute
+                            tokenPureSplit.shift(); //remove the alias since we don't need it
+                            tokenData = dcg.getRecursiveValue(tokenDataArray[i], tokenPureSplit, 0); //split the token using dots and recursively get the value from the data
+                            if (!(typeof tokenData === 'object')) { //if the value is not object replace the token using regex
+                                tokenRegex = new RegExp(token, 'g');
+                                objRepeatClone.innerHTML = objRepeatClone.innerHTML.replace(tokenRegex, tokenData);
                             }
-                            objRepeatCloneHtml += objRepeatClone.innerHTML; //append the stored variable in order to insert them later
+                            aliasRegex = new RegExp("(?:<)[^>]*((?:"+dcg.labelRepeat+")(?:=)(?:\"|')(?:"+repeatAttrSplit[2]+"\\.)([^>]*?)(?:\"|'))[^>]*(?:>)", "gim");
+                            aliasRegexMatches = [];
+                            //replace alias inside the cloned element to literal definition in order to repeat the child elements that uses the alias from the parent element
+                            while (aliasRegexMatch = aliasRegex.exec(arg.obj.innerHTML)) { //find the child elements that uses the alias from the parent element
+                                arr = [];
+                                arr.push(aliasRegexMatch[1]);
+                                arr.push(aliasRegexMatch[2]);
+                                aliasRegexMatches.push(arr);
+                            }
+                            for (iii = 0;iii < aliasRegexMatches.length;iii++) { //iterate through the all of the matches and replace them with literal definition using regex
+                                aliasMatch = aliasRegexMatches[iii];
+                                aliasReplace = dcg.labelRepeat+"='"+repeatAttrSplit[0]+"."+i+"."+aliasMatch[1]+"'";
+                                aliasReplaceRegex = new RegExp(aliasMatch[0], 'g');
+                                objRepeatClone.innerHTML = objRepeatClone.innerHTML.replace(aliasReplaceRegex, aliasReplace);
+                            }
                         }
                     }
-                } else { //if data is an object then continue
-                    objRefSplitDot = objRefSplit[0].split("."); //split the attribute by dot to check the property
-                    if ((!hasId || objRefSplit[2] == arg.id) && arg.data.hasOwnProperty(objRefSplitDot[0])) { //if the id in the attribute is the same as defined id and data has the property defined in the attribute then continue
-                        dataTokens = dcg.getRecursiveValue(arg.data, objRefSplitDot, 0); //get the corresponding property from data
-                        for (ii = 0;ii < dataTokens.length;ii++) { //iterate through property
-                            dataChild = dataTokens[ii];
-                            objRepeatClone = objRepeat.cloneNode(true); //clone the element
-                            for (iii = 0;iii < tokens.length;iii++) { //iterate through all of the tokens
-                                token = tokens[iii];
-                                prop = token.substring(2, token.length-2); //remove delimiters from the token
-                                propSplit = prop.split("."); //split the token by dot in order to check id
-                                if ((!hasId || propSplit[0] == arg.id) && dataChild.hasOwnProperty(propSplit[propIndex])) { //if the token id is same as the defined id and data has the property defined in the token then continue
-                                    dataToken = dcg.getRecursiveValue(dataChild, propSplit, propIndex); //get the corresponding property from the dataChild
-                                    tokenRegex = new RegExp(token, 'g'); //prepare a regex statement to replace the corresponding tokens with the data
-                                    objRepeatClone.innerHTML = objRepeatClone.innerHTML.replace(tokenRegex, dataToken); //replace the tokens
-                                }
-                            }
-                            objRepeatCloneHtml += objRepeatClone.innerHTML; //append the stored variable in order to insert them later
-                        }
-                    }
+                    objRepeatCloneHtml += objRepeatClone.innerHTML; //expand the variable with the clone element that we have processed this will be done every loop and we will insert it after the iteration
                 }
             }
-            if (objRepeatCloneHtml != "") { //if the corresponding tokens are replaced in the element then insert the new element into the parent element and then remove the old element with delimiters
+            if (objRepeatCloneHtml != "") { //if the clone elements are processed then insert the cloned element and remove the original element
                 objRepeat.insertAdjacentHTML("afterend", objRepeatCloneHtml);
                 objRepeat.parentNode.removeChild(objRepeat);
             }
+            recursiveReplaceRepeat(); //restart the function
         }
     }
-    tokens = dcg.removeDuplicatesFromArray(objClone.innerHTML.match(tokenDelimiterRegex)); //get all of the tokens from element
-    if (tokens.length > 0) { //check if there are tokens if there is then continue
-        for (i = 0;i < tokens.length;i++) { //iterate through tokens
-            token = tokens[i];
-            prop = token.substring(2, token.length-2); //remove delimiters from the tokens
-            propSplit = prop.split("."); //split the token in order to check id
-            if ((!hasId || propSplit[0] == arg.id) && arg.data.hasOwnProperty(propSplit[propIndex])) { //if token id is same as the defined id and data has the property defined in the token then continue
-                dataToken = dcg.getRecursiveValue(arg.data, propSplit, propIndex); //get the corresponding property from data
-                tokenRegex = new RegExp(token, 'g'); //prepare a regex statement to replace the corresponding tokens with the data
-                objClone.innerHTML = objClone.innerHTML.replace(tokenRegex, dataToken); //replace the tokens
-            }
-        }
-    }
-    return objClone; //return the new element
+    return arg.obj; //return the final element
 };
 dcg.revertBack = function () { //revert back function, load content backup if it exists
     if (typeof dcg.contentBackup != 'undefined') { //check if backup exists
@@ -317,15 +393,16 @@ dcg.render = function (src, base) { //wrapper for renderDesign function
     dcg.renderDesign(src, base);
 };
 dcg.loadTemplate = function (arg) { //load template function inputs are: arg.id, arg.data, arg.obj
-    var objClone, attrData;
+    var objClone, attrData, attrDataSplit;
     if (!arg.hasOwnProperty("id")) {return false;} //if id isn't defined then stop the function
     if (arg.hasOwnProperty("obj")) { //if obj is defined check the data attribute of the defined element
         attrData = arg.obj.getAttribute(dcg.labelTemplateData);
         if (attrData) {
-            if (dcg.dataJson.hasOwnProperty(attrData)) {
-                arg.data = dcg.dataJson[attrData];
+            attrDataSplit = attrData.split(".");
+            if (dcg.dataJson.hasOwnProperty(attrDataSplit[0])) { //check if there is an object defined on the json content
+                arg.data = dcg.getRecursiveValue(dcg.dataJson, attrDataSplit, 0); //split the label using dots and recursively get the value from the data
             } else {
-                arg.data = JSON.parse(attrData);
+                arg.data = JSON.parse(attrData); //if there isn't parse the label data
             }
         }
     } else { //if its not defined then set it undefined
@@ -334,10 +411,11 @@ dcg.loadTemplate = function (arg) { //load template function inputs are: arg.id,
     objClone = init_template(arg.id, arg.obj).cloneNode(true); //load and clone the template
     attrData = objClone.getAttribute(dcg.labelTemplateData); //get the referenced template's data attribute
     if ((!arg.data || !arg.hasOwnProperty("data")) && attrData) { //if data is not defined previously check if its defined on the referenced template
-        if (dcg.dataJson.hasOwnProperty(attrData)) {
-            arg.data = dcg.dataJson[attrData];
+        attrDataSplit = attrData.split(".");
+        if (dcg.dataJson.hasOwnProperty(attrDataSplit[0])) { //check if there is an object defined on the json content
+            arg.data = dcg.getRecursiveValue(dcg.dataJson, attrDataSplit, 0); //split the label using dots and recursively get the value from the data
         } else {
-            arg.data = JSON.parse(attrData);
+            arg.data = JSON.parse(attrData); //if there isn't parse the label data
         }
     }
     if (arg.data) { //if data is defined then display the tokens
@@ -456,3 +534,42 @@ dcg.getScript = function (url, callback) { //external script injection function
         }
     }, dcg.cacheRender);
 };
+
+//Babel and polyfills
+
+function _typeof(obj) { "@babel/helpers - typeof"; if (typeof Symbol === "function" && typeof Symbol.iterator === "symbol") { _typeof = function _typeof(obj) { return typeof obj; }; } else { _typeof = function _typeof(obj) { return obj && typeof Symbol === "function" && obj.constructor === Symbol && obj !== Symbol.prototype ? "symbol" : typeof obj; }; } return _typeof(obj); }
+
+function _defineProperty(obj, key, value) { if (key in obj) { Object.defineProperty(obj, key, { value: value, enumerable: true, configurable: true, writable: true }); } else { obj[key] = value; } return obj; }
+
+if (!Object.assign) {
+    Object.defineProperty(Object, 'assign', {
+        enumerable: false,
+        configurable: true,
+        writable: true,
+        value: function(target) {
+        'use strict';
+        if (target === undefined || target === null) {
+            throw new TypeError('Cannot convert first argument to object');
+        }
+
+        var to = Object(target);
+        for (var i = 1; i < arguments.length; i++) {
+            var nextSource = arguments[i];
+            if (nextSource === undefined || nextSource === null) {
+            continue;
+            }
+            nextSource = Object(nextSource);
+
+            var keysArray = Object.keys(Object(nextSource));
+            for (var nextIndex = 0, len = keysArray.length; nextIndex < len; nextIndex++) {
+            var nextKey = keysArray[nextIndex];
+            var desc = Object.getOwnPropertyDescriptor(nextSource, nextKey);
+            if (desc !== undefined && desc.enumerable) {
+                to[nextKey] = nextSource[nextKey];
+            }
+            }
+        }
+        return to;
+        }
+    });
+}
