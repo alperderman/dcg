@@ -1,0 +1,77 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="x-ua-compatible" content="ie=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DCG | Design</title>
+    <link rel="stylesheet" href="css/markdown.css">
+    <link href="https://fonts.googleapis.com/css2?family=Nunito" rel="stylesheet">
+    <style>
+      .markdown-body {
+        font-family: 'Nunito', sans-serif !important;
+      }
+    </style>
+  </head>
+  <body style="background-color:whitesmoke;">
+      <div class="container-lg px-3 my-5 markdown-body">
+
+        <!--inserting a json content (token) and defining a custom attribute-->
+        <h1><a href="#test" dcg-attr:custom="customtext">Dynamic Content {{jsonData.gen}}</a></h1>
+
+        <!--inserting a html content-->
+        <dcg dcg-html="rawHtml">
+        </dcg>
+
+        <!--raw html contents that is defined on the design.html-->
+        <hr>
+        <h2>Basic Tests / Examples</h2>
+        <p>And this paragraph is written on design.html</p>
+
+        <!--inserting the html content nested into the json content-->
+        {{jsonData.nestedHtml}}
+
+        <!--referencing an external template and defining a default json content with dcg-data that can only be used inside the template-->
+        <dcg dcg-temp="temple" dcg-data='{"foo": "bar"}' dcg-tref>
+          <dcg dcg-src="template.html"></dcg>
+        </dcg>
+
+        <!--referencing a template using the raw html content defined on the index.html and using the json content named "sweet" on index.html as a default dataset-->
+        <dcg dcg-temp="test" dcg-data="sweet" dcg-tref>
+          <dcg dcg-html="templateHtml2"></dcg>
+        </dcg>
+
+        <!--rendering the previously referenced template and changing the default dataset with dcg-data-->
+        <dcg dcg-temp="temple" dcg-data='{"foo": "notbar", "card2": {"Color": "#ae5"}}' dcg-tren></dcg>
+
+        <!--complex examples with using multiple nested dcg-repeats, tokens, templates and custom attributes-->
+        <div id="test">
+          <div class="footer border-top border-gray-light mt-5 pt-3 text-right text-gray" dcg-attr:great="wow">
+              Test variable: <a href="#test" dcg-attr:test="asd">{{jsonData.test}}</a>.
+              
+              <div class="testing123">
+                <dcg dcg-repeat="base.customers.data as card">
+                  <dcg dcg-repeat="card.tags as tag">
+                    <a>{{tag}}</a>
+                  </dcg>
+                  <a>{{card.CustomerName}}</a>
+                  {{card.divdesc}}
+                  <br>
+                </dcg>
+                <hr>
+                <dcg dcg-repeat="base.customers.data as card2">
+                  <dcg dcg-temp="temple" dcg-data='{"foo": "bar"}' dcg-tren></dcg>
+                </dcg>
+              </div>
+
+                <!--inserting a specific token that is deeply nested-->
+                <br><br>{{base.person.1.name}}
+                
+          </div>
+        </div>
+      </div>
+
+    <!--dynamically loading a template named "test" with loadTemplate function and inserting into the document.body-->
+    <script>document.body.innerHTML += dcg.loadTemplate({id:"test", data: {fruits:[{name:"orange", color:"orange"}, {name:"strawberry", color:"red"}]}}).innerHTML;</script>
+  </body>
+</html>
