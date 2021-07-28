@@ -220,7 +220,8 @@ dcg.renderDesign = function (src, base) { //the main render function
                                 htmlTargets = dcg.getElementsByAttribute(document.body, dcg.labelHtml, contentId);
                                 for (i = 0; i < htmlTargets.length; i++) {
                                     htmlTarget = htmlTargets[i];
-                                    htmlTarget.outerHTML = dcg.dataHtml[contentId];
+                                    htmlTarget.insertAdjacentHTML("afterend", dcg.dataHtml[contentId]);
+                                    htmlTarget.parentNode.removeChild(htmlTarget);
                                 }
                             }
                             //store the referenced templates
@@ -236,7 +237,8 @@ dcg.renderDesign = function (src, base) { //the main render function
                             for (i = 0;i < designTemplateRenders.length;i++) {
                                 designTemplate = designTemplateRenders[i];
                                 designTemplateId = designTemplate.getAttribute(dcg.labelTemplate);
-                                designTemplate.outerHTML = dcg.loadTemplate({id : designTemplateId, obj : designTemplate}).innerHTML;
+                                designTemplate.insertAdjacentHTML("afterend", dcg.loadTemplate({id : designTemplateId, obj : designTemplate}).innerHTML);
+                                designTemplate.parentNode.removeChild(designTemplate);
                             }
                             document.body = dcg.displayTokens(); //insert json contents, the tokens
                             document.body.innerHTML = replace_attr(); //replace custom attributes
@@ -443,7 +445,8 @@ dcg.loadContents = function (node, callback, i) { //fetch and load external cont
             dcg.xhr(src, function (xhr) {
                 if (xhr.readyState == 4) {
                     if (xhr.status == 200) {
-                        node[i].outerHTML = xhr.responseText;
+                        node[i].insertAdjacentHTML("afterend", xhr.responseText);
+                        node[i].parentNode.removeChild(node[i]);
                         i++;
                         dcg.loadContents(node, callback, i);
                     }
