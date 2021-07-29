@@ -146,6 +146,13 @@ dcg.mergeDeep = function (target) { //function for merging multi-dimensional obj
     }
     return (_dcg = dcg).mergeDeep.apply(_dcg, [target].concat(sources));
 };
+dcg.replaceAll = function (str, find, replace, options) {
+    if (!options) {options = 'gim';}
+    function escapeRegExp(string) {
+        return string.replace(/[.*+\-?^${}()|[\]\\]/g, '\\$&');
+    }
+    return str.replace(new RegExp(escapeRegExp(find), options), replace);
+};
 dcg.renderDesign = function (src, base) { //the main render function
     var i, externalContents, jsonContents, jsonContentParse, jsonContentNested, htmlContents, contentId, contentStyles, designLinks, designStyles, designScripts, designTemplateReferences, designTemplateRenders, designTemplate, designTemplateId, fixedResponseText, jsonTargets, jsonTarget, htmlTargets, htmlTarget;
     if (typeof dcg.beforeRender != 'undefined') { //if beforeRender function is defined run it
@@ -263,7 +270,7 @@ dcg.renderDesign = function (src, base) { //the main render function
         }
     });
     function fix_path(html, base) { //replace paths with base path
-        var i, newHtml = html, newUrl, matches = [], url, replaceUrl, regex = new RegExp("(?:<)[^>]*(?:src|href|"+dcg.labelSource+")(?:=)(?:\"|')([^>]*?)(?:\"|')[^>]*(?:>)", "gim");
+        var i, newHtml = html, newUrl, matches = [], url, regex = new RegExp("(?:<)[^>]*(?:src|href|"+dcg.labelSource+")(?:=)(?:\"|')([^>]*?)(?:\"|')[^>]*(?:>)", "gim");
         while (match = regex.exec(newHtml)) {
             matches.push(match[1]);
         }
@@ -272,15 +279,14 @@ dcg.renderDesign = function (src, base) { //the main render function
             url = matches[i];
             if (url.search("http") == -1 && url[0] != "#") {
                 newUrl = base+url;
-                replaceUrl = new RegExp(url, "gim");
-                newHtml = newHtml.replace(replaceUrl, newUrl);
+                newHtml = dcg.replaceAll(newHtml, url, newUrl, 'gim');
             }
         }
         return newHtml;
     }
     function replace_attr(html) { //replace custom attributes
         if (!html) {html = document.body.cloneNode(true).innerHTML;}
-        var i, newHtml = html, match, matches = [], oldAttr, newAttr, replaceAttr, regex = new RegExp("((?:"+dcg.labelAttribute+")(?:[^>]*?)(?:=)(?:\"|')(?:[^>]*?)(?:\"|'))","gim");
+        var i, newHtml = html, match, matches = [], oldAttr, newAttr, regex = new RegExp("((?:"+dcg.labelAttribute+")(?:[^>]*?)(?:=)(?:\"|')(?:[^>]*?)(?:\"|'))","gim");
         while (match = regex.exec(newHtml)) {
             matches.push(match[1]);
         }
@@ -288,14 +294,13 @@ dcg.renderDesign = function (src, base) { //the main render function
         for (i = 0;i < matches.length;i++) {
             oldAttr = matches[i];
             newAttr = oldAttr.replace(dcg.labelAttribute, "");
-            replaceAttr = new RegExp(oldAttr, "gim");
-            newHtml = newHtml.replace(replaceAttr, newAttr);
+            newHtml = dcg.replaceAll(newHtml, oldAttr, newAttr, 'gim');
         }
         return newHtml;
     }
 };
 dcg.displayTokens = function (arg) { //display tokens function inputs are: arg.data, arg.obj
-    var i, tokens, token, tokenPure, tokenPureSplit, tokenData, tokenRegex, tokenDelimiterRegex = new RegExp(dcg.tokenOpen+"[\\s\\S]*?"+dcg.tokenClose, "g");
+    var i, tokens, token, tokenPure, tokenPureSplit, tokenData, tokenDelimiterRegex = new RegExp(dcg.tokenOpen+"[\\s\\S]*?"+dcg.tokenClose, "g");
     if (!arg) {arg = {};}
     if (!arg.hasOwnProperty("data")) {arg.data = dcg.dataJson;} //default data as dcg.dataJson
     if (!arg.hasOwnProperty("obj")) {arg.obj = document.body;} //default element as document.body
@@ -308,14 +313,13 @@ dcg.displayTokens = function (arg) { //display tokens function inputs are: arg.d
         if(arg.data.hasOwnProperty(tokenPureSplit[0])){
             tokenData = dcg.getRecursiveValue(arg.data, tokenPureSplit, 0); //split the token using dots and recursively get the value from the data
             if(!(typeof tokenData === 'object')){
-                tokenRegex = new RegExp(token, 'g');
-                arg.obj.innerHTML = arg.obj.innerHTML.replace(tokenRegex, tokenData); //replace the token with the value using regex
+                arg.obj.innerHTML = dcg.replaceAll(arg.obj.innerHTML, token, tokenData, 'g'); //replace the token with the value using regex
             }
         }
     }
     recursiveReplaceRepeat();
     function recursiveReplaceRepeat() { //replace repeats recursively
-        var i, ii, iii, arr, objRepeat, objRepeatClone, objRepeatCloneHtml, repeatAttr, repeatAttrSplit, repeatAttrSplitDot, tokenDataArray, tokenDataArrayCount, tokens, token, tokenPure, tokenPureSplit, tokenData, aliasRegex, aliasRegexMatches, aliasRegexMatch, aliasMatch, aliasReplace, aliasReplaceRegex;
+        var i, ii, iii, arr, objRepeat, objRepeatClone, objRepeatCloneHtml, repeatAttr, repeatAttrSplit, repeatAttrSplitDot, tokenDataArray, tokenDataArrayCount, tokens, token, tokenPure, tokenPureSplit, tokenData, aliasRegex, aliasRegexMatches, aliasRegexMatch, aliasMatch, aliasReplace;
         objRepeat = dcg.getElementByAttribute(arg.obj, dcg.labelRepeat); //get the first element that has repeat attribute
         objRepeatCloneHtml = "";
         if (objRepeat !== false) { //if there is element with repeat attribute continue
@@ -341,8 +345,7 @@ dcg.displayTokens = function (arg) { //display tokens function inputs are: arg.d
                             tokenPureSplit.shift(); //remove the alias since we don't need it
                             tokenData = dcg.getRecursiveValue(tokenDataArray[i], tokenPureSplit, 0); //split the token using dots and recursively get the value from the data
                             if (!(typeof tokenData === 'object')) { //if the value is not object replace the token using regex
-                                tokenRegex = new RegExp(token, 'g');
-                                objRepeatClone.innerHTML = objRepeatClone.innerHTML.replace(tokenRegex, tokenData);
+                                objRepeatClone.innerHTML = dcg.replaceAll(objRepeatClone.innerHTML, token, tokenData, 'g');
                             }
                             aliasRegex = new RegExp("(?:<)[^>]*((?:"+dcg.labelRepeat+")(?:=)(?:\"|')(?:"+repeatAttrSplit[2]+"\\.)([^>]*?)(?:\"|'))[^>]*(?:>)", "gim");
                             aliasRegexMatches = [];
@@ -356,8 +359,7 @@ dcg.displayTokens = function (arg) { //display tokens function inputs are: arg.d
                             for (iii = 0;iii < aliasRegexMatches.length;iii++) { //iterate through the all of the matches and replace them with literal definition using regex
                                 aliasMatch = aliasRegexMatches[iii];
                                 aliasReplace = dcg.labelRepeat+"='"+repeatAttrSplit[0]+"."+i+"."+aliasMatch[1]+"'";
-                                aliasReplaceRegex = new RegExp(aliasMatch[0], 'g');
-                                objRepeatClone.innerHTML = objRepeatClone.innerHTML.replace(aliasReplaceRegex, aliasReplace);
+                                objRepeatClone.innerHTML = dcg.replaceAll(objRepeatClone.innerHTML, aliasMatch[0], aliasReplace, 'g');
                             }
                         }
                     }
