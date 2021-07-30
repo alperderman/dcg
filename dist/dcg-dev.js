@@ -12,6 +12,7 @@ dcg.labelTemplateReference = "dcg-tref"; //template reference attribute: for loa
 dcg.labelTemplateRender = "dcg-tren"; //template render attribute: for rendering the templates that has been referenced before
 dcg.labelSource = "dcg-src"; //external source attribute: for fetching external contents or external templates
 dcg.labelRepeat = "dcg-repeat"; //repeat attribute: for iterating json contents on design
+dcg.labelRemove = "dcg-remove"; //remove attribute: for removing css files and styles from content
 dcg.labelAttribute = "dcg-attr:"; //custom attribute prefix: custom attributes are used for bypassing invalid html errors when you use tokens inside attributes
 dcg.tokenOpen = "{{"; //opening delimiter for tokens
 dcg.tokenClose = "}}"; //closing delimiter for tokens
@@ -154,18 +155,18 @@ dcg.replaceAll = function (str, find, replace, options) {
     return str.replace(new RegExp(escapeRegExp(find), options), replace);
 };
 dcg.renderDesign = function (src, base) { //the main render function
-    var i, externalContents, jsonContents, jsonContentParse, jsonContentNested, htmlContents, contentId, contentStyles, designLinks, designStyles, designScripts, designTemplateReferences, designTemplateRenders, designTemplate, designTemplateId, fixedResponseText, jsonTargets, jsonTarget, htmlTargets, htmlTarget;
+    var i, externalContents, jsonContents, jsonContentParse, jsonContentNested, htmlContents, contentId, contentStyle, contentCss, contentRemove, designLinks, designStyles, designScripts, designTemplateReferences, designTemplateRenders, designTemplate, designTemplateId, fixedResponseText, jsonTargets, jsonTarget, htmlTargets, htmlTarget;
     if (typeof dcg.beforeRender != 'undefined') { //if beforeRender function is defined run it
         dcg.beforeRender();
     }
-    if (dcg.removeCss) { //remove styles from the content
-        contentStyles = dcg.getElementsByAttribute(document.documentElement, "rel", "stylesheet");
-        while (document.getElementsByTagName('style').length > 0) {
-            document.getElementsByTagName('style')[0].parentNode.removeChild(document.getElementsByTagName('style')[0]);
+    if (dcg.removeCss) { //find styles from the content and tag them
+        contentStyle = document.getElementsByTagName('style');
+        contentCss = dcg.getElementsByAttribute(document.documentElement, "rel", "stylesheet");
+        for (i = 0; i < contentStyle.length; i++) {
+            contentStyle[i].setAttribute("dcg-remove", "true");
         }
-        while (contentStyles.length > 0) {
-            contentStyles[0].parentNode.removeChild(contentStyles[0]);
-            contentStyles.splice(0, 1);
+        for (i = 0; i < contentCss.length; i++) {
+            contentCss[i].setAttribute("dcg-remove", "true");
         }
     }
     externalContents = dcg.getElementsByAttribute(document.body, dcg.labelSource); //get external contents
@@ -246,6 +247,12 @@ dcg.renderDesign = function (src, base) { //the main render function
                                 designTemplateId = designTemplate.getAttribute(dcg.labelTemplate);
                                 designTemplate.insertAdjacentHTML("afterend", dcg.loadTemplate({id : designTemplateId, obj : designTemplate}).innerHTML);
                                 designTemplate.parentNode.removeChild(designTemplate);
+                            }
+                            if (dcg.removeCss) { //remove tagged css from the content
+                                contentRemove = dcg.getElementsByAttribute(document.head, dcg.labelRemove);
+                                for (i = 0; i < contentRemove.length; i++) {
+                                    contentRemove[i].parentNode.removeChild(contentRemove[i]);
+                                }
                             }
                             document.body = dcg.displayTokens(); //insert json contents, the tokens
                             document.body.innerHTML = replace_attr(); //replace custom attributes
