@@ -147,7 +147,7 @@ dcg.mergeDeep = function (target) { //function for merging multi-dimensional obj
     }
     return (_dcg = dcg).mergeDeep.apply(_dcg, [target].concat(sources));
 };
-dcg.replaceAll = function (str, find, replace, options) {
+dcg.replaceAll = function (str, find, replace, options) { //replace all strings with using regex
     if (!options) {options = 'gim';}
     function escapeRegExp(string) {
         return string.replace(/[.*+\-?^${}()|[\]\\]/g, '\\$&');
@@ -260,6 +260,9 @@ dcg.renderDesign = function (src, base) { //the main render function
                                 //remove attributes
                                 document.body.removeAttribute(dcg.labelDesign);
                                 document.body.removeAttribute(dcg.labelBase);
+                                if (window.location.hash.slice(1)) { //jump to anchor
+                                    document.getElementById(window.location.hash.slice(1)).scrollIntoView();
+                                }
                                 dcg.DOMLoad(); //dispatch onload event for injected scripts
                                 if (typeof dcg.afterRender != 'undefined') { //if afterRender function is defined then set the status true and run it
                                     dcg.afterRender(true);
