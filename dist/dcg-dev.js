@@ -1,14 +1,17 @@
 /*!
-* Dynamic Content Generation (1.0.1) 2021/07/23
+* Dynamic Content Generation (1.0.2) 2021/08/06
 */
 var dcg = {};
 dcg.labelDesign = "dcg-design"; //design attribute: for locating design itself
 dcg.labelBase = "dcg-base"; //base attribute: for setting base path for design dependencies
+dcg.labelObj = "dcg-obj"; //dynamic content attribute
+dcg.labelRaw = "dcg-raw"; //static content attribute
 dcg.labelJson = "dcg-json"; //json content attribute
-dcg.labelHtml = "dcg-html"; //raw html content attribute
+dcg.labelXml = "dcg-xml"; //xml content attribute
 dcg.labelTemplate = "dcg-temp"; //temp attribute: for indicating templates
 dcg.labelTemplateData = "dcg-data"; //data attribute: for passing raw json data to the template or binding the template with json content
 dcg.labelTemplateReference = "dcg-tref"; //template reference attribute: for loading template for future uses
+dcg.labelTemplatePrefix = "tref_"; //prefix for indicating template references inside the dataStatic
 dcg.labelTemplateRender = "dcg-tren"; //template render attribute: for rendering the templates that has been referenced before
 dcg.labelSource = "dcg-src"; //external source attribute: for fetching external contents or external templates
 dcg.labelRepeat = "dcg-repeat"; //repeat attribute: for iterating json contents on design
@@ -16,9 +19,8 @@ dcg.labelRemove = "dcg-remove"; //remove attribute: for removing css files and s
 dcg.labelAttribute = "dcg-attr:"; //custom attribute prefix: custom attributes are used for bypassing invalid html errors when you use tokens inside attributes
 dcg.tokenOpen = "{{"; //opening delimiter for tokens
 dcg.tokenClose = "}}"; //closing delimiter for tokens
-dcg.dataTemplate = {}; //for storing templates
-dcg.dataJson = {}; //for storing json contents
-dcg.dataHtml = {}; //for storing raw html contents
+dcg.dataDynamic = {}; //for storing dynamic contents, they are nestable and usable as tokens (xml and json)
+dcg.dataStatic = {}; //for storing static contents (raw html and template references)
 dcg.contentBackup = undefined; //for reverting back to the original state of the page
 dcg.removeCss = false; //for removing the styles of the content page if set to true styles will not be carried over rendered page
 dcg.cacheRender = false; //for caching render change it to true if its going to be used in production
@@ -111,16 +113,6 @@ dcg.convertToObject = function (obj) { //function for converting arrays into obj
     }
     return result;
 };
-dcg.tryParseJSON = function (str) { //function for testing JSON string
-    try {
-        var o = JSON.parse(str);
-        if (o && typeof o === "object") {
-            return o;
-        }
-    }
-    catch (e) { }
-    return str;
-};
 dcg.mergeDeep = function (target) { //function for merging multi-dimensional objects
     var _dcg;
     for (var _len = arguments.length, sources = new Array(_len > 1 ? _len - 1 : 0), _key = 1; _key < _len; _key++) {
@@ -155,7 +147,7 @@ dcg.replaceAll = function (str, find, replace, options) { //replace all strings 
     return str.replace(new RegExp(escapeRegExp(find), options), replace);
 };
 dcg.renderDesign = function (src, base) { //the main render function
-    var i, externalContents, jsonContents, jsonContentParse, jsonContentNested, htmlContents, contentId, contentStyle, contentCss, contentRemove, designLinks, designStyles, designScripts, designTemplateReferences, designTemplateRenders, designTemplate, designTemplateId, fixedResponseText, jsonTargets, jsonTarget, htmlTargets, htmlTarget;
+    var i, externalContents, staticContents, staticContent, dynamicContents, dynamicContent, dynamicContentParse, dynamicContentNested, contentId, contentStyle, contentCss, contentRemove, designLinks, designStyles, designScripts, designTemplateReferences, designTemplateRenders, designTemplate, designTemplateId, fixedResponseText, rawTargets, rawTarget;
     if (typeof dcg.beforeRender != 'undefined') { //if beforeRender function is defined run it
         dcg.beforeRender();
     }
@@ -171,22 +163,28 @@ dcg.renderDesign = function (src, base) { //the main render function
     }
     externalContents = dcg.getElementsByAttribute(document.body, dcg.labelSource); //get external contents
     dcg.loadContents(externalContents, function () { //load the external contents and then continue render
-        jsonContents = dcg.getElementsByAttribute(document.body, dcg.labelJson); //get json contents
-        htmlContents = dcg.getElementsByAttribute(document.body, dcg.labelHtml); //get raw html contents
-        for (i = 0; i < htmlContents.length; i++) { //iterate through html contents and store them
-            htmlContent = htmlContents[i];
-            contentId = htmlContent.getAttribute(dcg.labelHtml);
-            if (!dcg.dataHtml.hasOwnProperty(contentId) && htmlContent.innerHTML != "") {
-                dcg.dataHtml[contentId] = htmlContent.innerHTML;
+        dynamicContents = dcg.getElementsByAttribute(document.body, dcg.labelObj); //get dynamic contents
+        staticContents = dcg.getElementsByAttribute(document.body, dcg.labelRaw); //get raw contents
+        for (i = 0; i < staticContents.length; i++) { //iterate through raw contents and store them
+            staticContent = staticContents[i];
+            contentId = staticContent.getAttribute(dcg.labelRaw);
+            if (staticContent.innerHTML != "") {
+                dcg.dataStatic[contentId] = staticContent.innerHTML;
             }
         }
-        for (i = 0; i < jsonContents.length; i++) { //iterate through json contents and store them
-            jsonContent = jsonContents[i];
-            contentId = jsonContent.getAttribute(dcg.labelJson);
-            if (jsonContent.innerHTML != "") {
-                jsonContentParse = dcg.tryParseJSON(jsonContent.innerHTML); //check if content is a valid json, if its parse them, if it isn't store them without modification
-                jsonContentNested = dcg.setNestedPropertyValue({}, contentId, jsonContentParse); //create nested object based labelJson
-                dcg.dataJson = dcg.convertToObject(dcg.mergeDeep(dcg.dataJson, jsonContentNested)); //merge content with dataJson and convert all arrays to objects in order to nest them manually later on
+        for (i = 0; i < dynamicContents.length; i++) { //iterate through dynamic contents and store them
+            dynamicContent = dynamicContents[i];
+            contentId = dynamicContent.getAttribute(dcg.labelObj);
+            if (dynamicContent.innerHTML != "") {
+                if (dynamicContent.hasAttribute(dcg.labelJson)) { //if it has labelJson attribute, parse json
+                    dynamicContentParse = JSON.parse(dynamicContent.innerHTML);
+                }else if (dynamicContent.hasAttribute(dcg.labelXml)) { //if it has labelXml attribute, parse xml
+                    dynamicContentParse = dcg.parseXmlToJson(dynamicContent.innerHTML);
+                }else { //if it doesn't have labels, store it as it is
+                    dynamicContentParse = dynamicContent.innerHTML;
+                }
+                dynamicContentNested = dcg.setNestedPropertyValue({}, contentId, dynamicContentParse); //create nested object based labelObj
+                dcg.dataDynamic = dcg.convertToObject(dcg.mergeDeep(dcg.dataDynamic, dynamicContentNested)); //merge content with dataDynamic and convert all arrays to objects in order to nest them manually later on
             }
         }
         if (src) { //check if source exists
@@ -224,12 +222,12 @@ dcg.renderDesign = function (src, base) { //the main render function
                         }
                         externalContents = dcg.getElementsByAttribute(document.body, dcg.labelSource); //get external templates
                         dcg.loadContents(externalContents, function () { //load external templates and continue render
-                            for (contentId in dcg.dataHtml) { //insert html contents
-                                htmlTargets = dcg.getElementsByAttribute(document.body, dcg.labelHtml, contentId);
-                                for (i = 0; i < htmlTargets.length; i++) {
-                                    htmlTarget = htmlTargets[i];
-                                    htmlTarget.insertAdjacentHTML("afterend", dcg.dataHtml[contentId]);
-                                    htmlTarget.parentNode.removeChild(htmlTarget);
+                            for (contentId in dcg.dataStatic) { //insert html contents
+                                rawTargets = dcg.getElementsByAttribute(document.body, dcg.labelRaw, contentId);
+                                for (i = 0; i < rawTargets.length; i++) {
+                                    rawTarget = rawTargets[i];
+                                    rawTarget.insertAdjacentHTML("afterend", dcg.dataStatic[contentId]);
+                                    rawTarget.parentNode.removeChild(rawTarget);
                                 }
                             }
                             //store the referenced templates
@@ -280,7 +278,7 @@ dcg.renderDesign = function (src, base) { //the main render function
         }
     });
     function fix_path(html, base) { //replace paths with base path
-        var i, newHtml = html, newUrl, matches = [], url, regex = new RegExp("(?:<)[^>]*(?:src|href|"+dcg.labelSource+")(?:=)(?:\"|')([^>]*?)(?:\"|')[^>]*(?:>)", "gim");
+        var i, newHtml = html, newUrl, match, matches = [], url, regex = new RegExp("(?:<)[^>]*(?:src|href|"+dcg.labelSource+")(?:=)(?:\"|')([^>]*?)(?:\"|')[^>]*(?:>)", "gim");
         while (match = regex.exec(newHtml)) {
             matches.push(match[1]);
         }
@@ -312,7 +310,7 @@ dcg.renderDesign = function (src, base) { //the main render function
 dcg.displayTokens = function (arg) { //display tokens function inputs are: arg.data, arg.obj
     var i, tokens, token, tokenPure, tokenPureSplit, tokenData, tokenDelimiterRegex = new RegExp(dcg.tokenOpen+"[\\s\\S]*?"+dcg.tokenClose, "g");
     if (!arg) {arg = {};}
-    if (!arg.hasOwnProperty("data")) {arg.data = dcg.dataJson;} //default data as dcg.dataJson
+    if (!arg.hasOwnProperty("data")) {arg.data = dcg.dataDynamic;} //default data as dcg.dataDynamic
     if (!arg.hasOwnProperty("obj")) {arg.obj = document.body;} //default element as document.body
     arg.obj = arg.obj.cloneNode(true); //clone the element
     tokens = dcg.removeDuplicatesFromArray(arg.obj.innerHTML.match(tokenDelimiterRegex)); //get all tokens from the element and remove duplicated tokens
@@ -413,8 +411,8 @@ dcg.loadTemplate = function (arg) { //load template function inputs are: arg.id,
         attrData = arg.obj.getAttribute(dcg.labelTemplateData);
         if (attrData) {
             attrDataSplit = attrData.split(".");
-            if (dcg.dataJson.hasOwnProperty(attrDataSplit[0])) { //check if there is an object defined on the json content
-                arg.data = dcg.getRecursiveValue(dcg.dataJson, attrDataSplit, 0); //split the label using dots and recursively get the value from the data
+            if (dcg.dataDynamic.hasOwnProperty(attrDataSplit[0])) { //check if there is an object defined on the json content
+                arg.data = dcg.getRecursiveValue(dcg.dataDynamic, attrDataSplit, 0); //split the label using dots and recursively get the value from the data
             } else {
                 arg.data = JSON.parse(attrData); //if there isn't parse the label data
             }
@@ -426,8 +424,8 @@ dcg.loadTemplate = function (arg) { //load template function inputs are: arg.id,
     attrData = objClone.getAttribute(dcg.labelTemplateData); //get the referenced template's data attribute
     if ((!arg.data || !arg.hasOwnProperty("data")) && attrData) { //if data is not defined previously check if its defined on the referenced template
         attrDataSplit = attrData.split(".");
-        if (dcg.dataJson.hasOwnProperty(attrDataSplit[0])) { //check if there is an object defined on the json content
-            arg.data = dcg.getRecursiveValue(dcg.dataJson, attrDataSplit, 0); //split the label using dots and recursively get the value from the data
+        if (dcg.dataDynamic.hasOwnProperty(attrDataSplit[0])) { //check if there is an object defined on the json content
+            arg.data = dcg.getRecursiveValue(dcg.dataDynamic, attrDataSplit, 0); //split the label using dots and recursively get the value from the data
         } else {
             arg.data = JSON.parse(attrData); //if there isn't parse the label data
         }
@@ -438,11 +436,11 @@ dcg.loadTemplate = function (arg) { //load template function inputs are: arg.id,
     return objClone;
     function init_template(id, obj) { //load template function
         var template;
-        if (typeof obj == 'undefined' || dcg.dataTemplate.hasOwnProperty(id)) { //check if template's id exists on the stored templates or obj is not defined
-            template = dcg.dataTemplate[id];
+        if (typeof obj == 'undefined' || dcg.dataStatic.hasOwnProperty(dcg.labelTemplatePrefix+id)) { //check if template's id exists on the stored templates or obj is not defined
+            template = dcg.dataStatic[dcg.labelTemplatePrefix+id];
         } else { //if obj is defined and template id doesnt exists then store this new template with its id
             template = obj.cloneNode(true);
-            dcg.dataTemplate[id] = template;
+            dcg.dataStatic[dcg.labelTemplatePrefix+id] = template;
         }
         return template; //return the template
     }
@@ -491,6 +489,34 @@ dcg.loadScripts = function (node, callback, i) { //inject scripts from specified
             callback();
         }
     }
+};
+dcg.parseXmlToJson = function (xml) { //convert xml to object
+    var json = {}, res, key, value, arr, arrValue, _iterator, _step, _iterator = _createForOfIteratorHelper(xml.matchAll(/(?:<(\w*)(?:\s[^>]*)*>)((?:(?!<\1)[\s\S])*)(?:<\/\1>)|<(\w*)(?:\s*)*\/>/gm));
+    try {
+      for (_iterator.s(); !(_step = _iterator.n()).done;) {
+        res = _step.value;
+        key = res[1] || res[3];
+        value = res[2] && dcg.parseXmlToJson(res[2]);
+        if (json.hasOwnProperty(key)) {
+            if (!Array.isArray(json[key])) {
+                arr = [];
+                arr.push(json[key]);
+            }else {
+                arr = json[key];
+            }
+            arrValue = (value && Object.keys(value).length ? value : res[2]) || null;
+            arr.push(arrValue);
+            json[key] = arr;
+        } else {
+            json[key] = (value && Object.keys(value).length ? value : res[2]) || null;
+        }
+      }
+    } catch (err) {
+      _iterator.e(err);
+    } finally {
+      _iterator.f();
+    }
+    return json;
 };
 dcg.xhr = function (url, callback, cache, method, async) { //XHR function used for fetching external contents, scripts and templates
     if (!cache) {cache = false;}
@@ -556,6 +582,23 @@ function _typeof(obj) { "@babel/helpers - typeof"; if (typeof Symbol === "functi
 
 function _defineProperty(obj, key, value) { if (key in obj) { Object.defineProperty(obj, key, { value: value, enumerable: true, configurable: true, writable: true }); } else { obj[key] = value; } return obj; }
 
+function _createForOfIteratorHelper(o, allowArrayLike) { var it = typeof Symbol !== "undefined" && o[Symbol.iterator] || o["@@iterator"]; if (!it) { if (Array.isArray(o) || (it = _unsupportedIterableToArray(o)) || allowArrayLike && o && typeof o.length === "number") { if (it) o = it; var i = 0; var F = function F() {}; return { s: F, n: function n() { if (i >= o.length) return { done: true }; return { done: false, value: o[i++] }; }, e: function e(_e) { throw _e; }, f: F }; } throw new TypeError("Invalid attempt to iterate non-iterable instance.\nIn order to be iterable, non-array objects must have a [Symbol.iterator]() method."); } var normalCompletion = true, didErr = false, err; return { s: function s() { it = it.call(o); }, n: function n() { var step = it.next(); normalCompletion = step.done; return step; }, e: function e(_e2) { didErr = true; err = _e2; }, f: function f() { try { if (!normalCompletion && it.return != null) it.return(); } finally { if (didErr) throw err; } } }; }
+
+function _unsupportedIterableToArray(o, minLen) { if (!o) return; if (typeof o === "string") return _arrayLikeToArray(o, minLen); var n = Object.prototype.toString.call(o).slice(8, -1); if (n === "Object" && o.constructor) n = o.constructor.name; if (n === "Map" || n === "Set") return Array.from(o); if (n === "Arguments" || /^(?:Ui|I)nt(?:8|16|32)(?:Clamped)?Array$/.test(n)) return _arrayLikeToArray(o, minLen); }
+
+function _arrayLikeToArray(arr, len) { if (len == null || len > arr.length) len = arr.length; for (var i = 0, arr2 = new Array(len); i < len; i++) { arr2[i] = arr[i]; } return arr2; }
+
+if (!String.prototype.matchAll) {
+    String.prototype.matchAll = function (rx) {
+        if (typeof rx === "string") rx = new RegExp(rx, "g");
+        rx = new RegExp(rx);
+        let cap = [];
+        let all = [];
+        while ((cap = rx.exec(this)) !== null) all.push(cap);
+        return all;
+    };
+}
+
 if (!Object.assign) {
     Object.defineProperty(Object, 'assign', {
         enumerable: false,
@@ -566,7 +609,6 @@ if (!Object.assign) {
         if (target === undefined || target === null) {
             throw new TypeError('Cannot convert first argument to object');
         }
-
         var to = Object(target);
         for (var i = 1; i < arguments.length; i++) {
             var nextSource = arguments[i];
