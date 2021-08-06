@@ -9,18 +9,34 @@
   <body dcg-design="design.html" dcg-base="./">
 
     <!--basic json content definition-->
-    <div dcg-json="jsonData">{"test" : "This is a variable", "2222": {"text": "123"}, "gen": "Generation"}</div>
+    <div dcg-obj="dynamicData" dcg-json>{"test" : "This is a variable", "2222": {"text": "123"}, "gen": "Generation"}</div>
     
     <!--expanding the previously defined json content-->
-    <div dcg-json="jsonData.2222">{"wow" : "lorem ipsum"}</div>
+    <div dcg-obj="dynamicData.2222" dcg-json>{"wow" : "lorem ipsum"}</div>
     
-    <!--expanding the json content with raw html-->
-    <div dcg-json="jsonData.nestedHtml">
+    <!--you can also expand dynamic contents with raw html the only difference is the render priority is same as the dynamic contents so you cannot use tokens inside it-->
+    <div dcg-obj="dynamicData.nestedHtml">
       <p>Testing nested HTML elements inside JSON</p>
     </div>
 
+    <!--expanding the dynamic content with xml-->
+    <div dcg-obj="dynamicData.navbar" dcg-xml>
+      <menu>
+        <title>Home</title>
+        <href>#home</href>
+      </menu>
+      <menu>
+        <title>About</title>
+        <href>#about</href>
+      </menu>
+      <menu>
+        <title>Contact</title>
+        <href>#contact</href>
+      </menu>
+    </div>
+
     <!--multiple objects in a multi-dimensional form-->
-    <div dcg-json="base">{"customers":{"data":[
+    <div dcg-obj="base" dcg-json>{"customers":{"data":[
       {"CustomerName":"Alfreds Futterkiste","Color":"#f00","tags":["HTML", "JS", "CSS"]},
       {"CustomerName":"Ana Trujillo Emparedados y helados","Color":"#0f0","tags":{"0": "PHP", "1": "ASP"}},
       {"CustomerName":"Antonio Moreno Taquer a","Color":"#00f","tags":["HTML", "JS"]},
@@ -28,29 +44,29 @@
       ]}, "person" : [{"name": "andrew"}, {"name": "barney"}]}
     </div>
 
-    <!--expanding a specific object inside the json content-->
-    <div dcg-json="base.customers.data.0.divdesc">
+    <!--expanding a specific object inside the dynamic content-->
+    <div dcg-obj="base.customers.data.0.divdesc">
       <p>One of our ordinary customer</p>
     </div>
-    <div dcg-json="base.customers.data.1.divdesc">
+    <div dcg-obj="base.customers.data.1.divdesc">
       <p>One of our ordinary customer</p>
     </div>
-    <div dcg-json="base.customers.data.2.divdesc">
+    <div dcg-obj="base.customers.data.2.divdesc">
       <p>One of our ordinary customer</p>
     </div>
-    <div dcg-json="base.customers.data.3.divdesc">
+    <div dcg-obj="base.customers.data.3.divdesc">
       <p>One of our ordinary customer</p>
     </div>
 
     <!--more json contents-->
-    <div dcg-json="vehicles">{"cars" : {"brands":["Volvo", "Ford", "BMW", "Mercedes"], "models":["V4", "GTR", "V8"]}}</div>
+    <div dcg-obj="vehicles" dcg-json>{"cars" : {"brands":["Volvo", "Ford", "BMW", "Mercedes"], "models":["V4", "GTR", "V8"]}}</div>
 
-    <div dcg-json="sweet">{"fruits":[{"name":"apple", "color":"red"}, {"name":"peer", "color":"green"}]}</div>
+    <div dcg-obj="sweet" dcg-json>{"fruits":[{"name":"apple", "color":"red"}, {"name":"peer", "color":"green"}]}</div>
     
-    <div dcg-json="foobar">{"foo": "bars"}</div>
+    <div dcg-obj="foobar" dcg-json>{"foo": "bars"}</div>
 
     <!--raw html content-->
-    <div dcg-html="rawHtml">
+    <div dcg-raw="rawHtml">
       <h2>Raw HTML</h2>
       <p>This paragraph is written on index.html</p>
       <h3>To-do</h3>
@@ -59,7 +75,7 @@
         <li><s>Lose design and content tags for convenience</s></li>
         <li><s>Check body styles and optimize it for rendering</s></li>
         <li><s>Check and test events for problems</s></li>
-        <li><s>Be able to use tokens inside html contents (render priority): <code>dcg-json="id"</code>, <code>dcg-html="id"</code> attributes</s></li>
+        <li><s>Be able to use tokens inside html contents (render priority)</s></li>
         <li><s>Be able to run local scripts</s></li>
         <li><s>Lose JQuery dependency <code>$.getScript()</code></s></li>
         <li><s>Get external content: <code>dcg-src="url"</code></s></li>
@@ -69,6 +85,7 @@
         <li><s>Be able to re-render from different design after the first initial render</s></li>
         <li><s>Be able to revert back changes</s></li>
         <li><s>Revise the <code>displayTokens()</code> again for more convenience</s></li>
+        <li><s>Be able to parse XML contents</s></li>
         <li>Write documentation</li>
       </ol>
       <div class="border-top"></div>
@@ -77,27 +94,27 @@
         <li>Content backup</li>
         <li><code>beforeRender</code> function</li>
         <li>Fetching external contents</li>
-        <li>Storing HTML contents</li>
-        <li>Storing JSON contents</li>
+        <li>Storing static contents (HTML, template references)</li>
+        <li>Storing dynamic contents (JSON, XML)</li>
         <li>Inserting CSS from design</li>
         <li>Fetching external templates</li>
-        <li>Inserting stored HTML contents</li>
+        <li>Inserting stored static contents</li>
         <li>Storing referenced templates</li>
         <li>Inserting stored templates</li>
-        <li>Inserting stored JSON contents, displaying tokens</li>
+        <li>Inserting stored dynamic contents, displaying tokens</li>
         <li>Replacing custom attributes</li>
         <li>Injecting scripts inside the design and dispatching <code>onload</code> event</li>
         <li><code>afterRender</code> function</li>
       </ol>
     </div>
 
-    <!--raw html content that it will be referenced as a template on design.html with using tokens from the previously defined content (this definition works because dcg-html's render priority is higher than json content)-->
-    <div dcg-html="templateHtml">
+    <!--raw html content that it will be referenced as a template on design.html with using tokens from the previously defined content (this definition works because dcg-raw's render priority is higher than json content)-->
+    <div dcg-raw="templateHtml">
       <div test="{{base.Color}}" style="color:white;background-color:{{base.Color}};width:100px;height:100px;">{{base.Color}} - {{foo}}</div>
     </div>
 
     <!--raw html content with dcg-repeat this also will be referenced as a template on design.html-->
-    <div dcg-html="templateHtml2">
+    <div dcg-raw="templateHtml2">
       <div style="background:crimson;color:white;width:100px;height:100px;">
         <div dcg-repeat="fruits as fruit">
           <a>{{fruit.name}} - {{fruit.color}}</a><br>
@@ -106,7 +123,7 @@
     </div>
 
     <!--external json content-->
-    <div dcg-json="exRate">
+    <div dcg-obj="exRate" dcg-json>
       <dcg dcg-src="https://api.exchangeratesapi.io/latest"></dcg>
     </div>
 

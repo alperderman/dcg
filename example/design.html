@@ -16,11 +16,20 @@
   <body style="background-color:whitesmoke;">
       <div class="container-lg px-3 my-5 markdown-body">
 
+        <!--repeating and inserting navbar menus that is defined as xml on index.html-->
+        <div style="width:100%;height:auto;background-color:#ccc;">
+          <ul style="display: inline-block;margin: 0;">
+            <dcg dcg-repeat="dynamicData.navbar.menu as menu">
+              <li style="display: inline-block;border-right: 1px solid #333;padding:1em;"><a href="{{menu.href}}">{{menu.title}}</a></li>
+            </dcg>
+          </ul>
+        </div>
+
         <!--inserting a json content (token) and defining a custom attribute-->
-        <h1><a href="#test" dcg-attr:custom="customtext">Dynamic Content {{jsonData.gen}}</a></h1>
+        <h1><a dcg-attr:href="" dcg-attr:custom="customtext">Dynamic Content {{dynamicData.gen}}</a></h1>
 
         <!--inserting a html content-->
-        <dcg dcg-html="rawHtml">
+        <dcg dcg-raw="rawHtml">
         </dcg>
 
         <!--raw html contents that is defined on the design.html-->
@@ -29,7 +38,7 @@
         <p>And this paragraph is written on design.html</p>
 
         <!--inserting the html content nested into the json content-->
-        {{jsonData.nestedHtml}}
+        {{dynamicData.nestedHtml}}
 
         <!--referencing an external template and defining a default json content with dcg-data that can only be used inside the template-->
         <dcg dcg-temp="temple" dcg-data='{"foo": "bar"}' dcg-tref>
@@ -38,7 +47,7 @@
 
         <!--referencing a template using the raw html content defined on the index.html and using the json content named "sweet" on index.html as a default dataset-->
         <dcg dcg-temp="test" dcg-data="sweet" dcg-tref>
-          <dcg dcg-html="templateHtml2"></dcg>
+          <dcg dcg-raw="templateHtml2"></dcg>
         </dcg>
 
         <!--rendering the previously referenced template and changing the default dataset with dcg-data-->
@@ -47,7 +56,7 @@
         <!--complex examples with using multiple nested dcg-repeats, tokens, templates and custom attributes-->
         <div id="test">
           <div class="footer border-top border-gray-light mt-5 pt-3 text-right text-gray" dcg-attr:great="wow">
-              Test variable: <a href="#test" dcg-attr:test="asd">{{jsonData.test}}</a>.
+              Test variable: <a href="#test" dcg-attr:test="asd">{{dynamicData.test}}</a>.
               
               <div class="testing123">
                 <dcg dcg-repeat="base.customers.data as card">
