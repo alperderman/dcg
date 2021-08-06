@@ -59,7 +59,7 @@ dcg.removeDuplicatesFromArray = function (arr) { //remove duplicated values from
     if(arr){
         for (var i=0;i < arr.length;i++) {
             var v = arr[i];
-            if (!m[v]) {
+            if (!m[v] && v != "") {
                 newArr.push(v);
                 m[v]=true;
             }
