@@ -69,14 +69,18 @@ dcg.removeDuplicatesFromArray = function (arr) { //remove duplicated values from
     }
     return newArr;
 };
-dcg.getRecursiveValue = function (arr, keys, i) { //getting a value from a multi-dimensional object
+dcg.getRecursiveValue = function (arr, keys, i) { //getting a value from a multi-dimensional object, case insensitive
     if (!i) {i = 0;}
-    var key = keys[i], len = keys.length, val;
-    if ((len > 0 && i < len) && arr.hasOwnProperty(key)) {
+    var key = keys[i], len = keys.length, val = arr;
+    if ((len > 0 && i < len)) {
         i++;
-        val = dcg.getRecursiveValue(arr[key], keys, i);
-    } else {
-        val = arr;
+        if (arr.hasOwnProperty(key)) {
+            val = dcg.getRecursiveValue(arr[key], keys, i);
+        }else if (arr.hasOwnProperty(key.toUpperCase())) {
+            val = dcg.getRecursiveValue(arr[key.toUpperCase()], keys, i);
+        }else if (arr.hasOwnProperty(key.toLowerCase())) {
+            val = dcg.getRecursiveValue(arr[key.toLowerCase()], keys, i);
+        }
     }
     return val;
 };
@@ -179,7 +183,7 @@ dcg.renderDesign = function (src, base) { //the main render function
                 if (dynamicContent.hasAttribute(dcg.labelJson)) { //if it has labelJson attribute, parse json
                     dynamicContentParse = JSON.parse(dynamicContent.innerHTML);
                 }else if (dynamicContent.hasAttribute(dcg.labelXml)) { //if it has labelXml attribute, parse xml
-                    dynamicContentParse = dcg.parseXmlToJson(dynamicContent.innerHTML);
+                    dynamicContentParse = dcg.parseXML(dynamicContent);
                 }else { //if it doesn't have labels, store it as it is
                     dynamicContentParse = dynamicContent.innerHTML;
                 }
@@ -490,33 +494,8 @@ dcg.loadScripts = function (node, callback, i) { //inject scripts from specified
         }
     }
 };
-dcg.parseXmlToJson = function (xml) { //convert xml to object
-    var json = {}, res, key, value, arr, arrValue, _iterator, _step, _iterator = _createForOfIteratorHelper(xml.matchAll(/(?:<(\w*)(?:\s[^>]*)*>)((?:(?!<\1)[\s\S])*)(?:<\/\1>)|<(\w*)(?:\s*)*\/>/gm));
-    try {
-      for (_iterator.s(); !(_step = _iterator.n()).done;) {
-        res = _step.value;
-        key = res[1] || res[3];
-        value = res[2] && dcg.parseXmlToJson(res[2]);
-        if (json.hasOwnProperty(key)) {
-            if (!Array.isArray(json[key])) {
-                arr = [];
-                arr.push(json[key]);
-            }else {
-                arr = json[key];
-            }
-            arrValue = (value && Object.keys(value).length ? value : res[2]) || null;
-            arr.push(arrValue);
-            json[key] = arr;
-        } else {
-            json[key] = (value && Object.keys(value).length ? value : res[2]) || null;
-        }
-      }
-    } catch (err) {
-      _iterator.e(err);
-    } finally {
-      _iterator.f();
-    }
-    return json;
+dcg.parseXML = function (m, p) { //convert xml elements to object
+    var f=1,o=2,d=3,n=4,j=7,c=8,h=9,l,b,a,k={},g=[];if(!p){p={}}if(typeof p=="string"){p={find:p}}p.xmlns=p.xmlns||"*";if(p.parse!="function"){p.parse=e}function e(i){return i.split(":").pop().replace(/^ows_/,"").replace(/[^a-z,A-Z,0-9]/g,"")}switch(m.nodeType){case h:a=(!p.find)?m.childNodes:(m.getElementsByTagNameNS)?m.getElementsByTagNameNS(p.xmlns,p.find.split(":").pop()):m.getElementsByTagName(p.find);for(l=0;l<a.length;l++){k=dcg.parseXML(a[l]);if(k){g.push(k)}}k=(g.length&&g.length==1)?g[0]:g;break;case f:if(m.attributes.length==0&&m.childNodes.length==1&&m.childNodes.item(0).nodeValue){k=m.childNodes.item(0).nodeValue}for(l=0;l<m.attributes.length;l++){b=p.parse(m.attributes.item(l).nodeName);k[b]=m.attributes.item(l).nodeValue}for(l=0;l<m.childNodes.length;l++){if(m.childNodes.item(l).nodeType!=d){b=p.parse(m.childNodes.item(l).nodeName);if(typeof k[b]=="undefined"){k[b]=dcg.parseXML(m.childNodes.item(l))}else{if(typeof k[b].push=="undefined"){k[b]=[k[b]]}k[b].push(dcg.parseXML(m.childNodes.item(l)))}}}break;case n:k="<![CDATA["+m.nodeValue+"]]>";break;case d:k=m.nodeValue;break;case c:k="";break;default:k=null}return k
 };
 dcg.xhr = function (url, callback, cache, method, async) { //xhr function used for fetching external contents, scripts and templates
     if (!cache) {cache = false;}
@@ -581,23 +560,6 @@ dcg.getScript = function (url, callback) { //external script injection function
 function _typeof(obj) { "@babel/helpers - typeof"; if (typeof Symbol === "function" && typeof Symbol.iterator === "symbol") { _typeof = function _typeof(obj) { return typeof obj; }; } else { _typeof = function _typeof(obj) { return obj && typeof Symbol === "function" && obj.constructor === Symbol && obj !== Symbol.prototype ? "symbol" : typeof obj; }; } return _typeof(obj); }
 
 function _defineProperty(obj, key, value) { if (key in obj) { Object.defineProperty(obj, key, { value: value, enumerable: true, configurable: true, writable: true }); } else { obj[key] = value; } return obj; }
-
-function _createForOfIteratorHelper(o, allowArrayLike) { var it = typeof Symbol !== "undefined" && o[Symbol.iterator] || o["@@iterator"]; if (!it) { if (Array.isArray(o) || (it = _unsupportedIterableToArray(o)) || allowArrayLike && o && typeof o.length === "number") { if (it) o = it; var i = 0; var F = function F() {}; return { s: F, n: function n() { if (i >= o.length) return { done: true }; return { done: false, value: o[i++] }; }, e: function e(_e) { throw _e; }, f: F }; } throw new TypeError("Invalid attempt to iterate non-iterable instance.\nIn order to be iterable, non-array objects must have a [Symbol.iterator]() method."); } var normalCompletion = true, didErr = false, err; return { s: function s() { it = it.call(o); }, n: function n() { var step = it.next(); normalCompletion = step.done; return step; }, e: function e(_e2) { didErr = true; err = _e2; }, f: function f() { try { if (!normalCompletion && it.return != null) it.return(); } finally { if (didErr) throw err; } } }; }
-
-function _unsupportedIterableToArray(o, minLen) { if (!o) return; if (typeof o === "string") return _arrayLikeToArray(o, minLen); var n = Object.prototype.toString.call(o).slice(8, -1); if (n === "Object" && o.constructor) n = o.constructor.name; if (n === "Map" || n === "Set") return Array.from(o); if (n === "Arguments" || /^(?:Ui|I)nt(?:8|16|32)(?:Clamped)?Array$/.test(n)) return _arrayLikeToArray(o, minLen); }
-
-function _arrayLikeToArray(arr, len) { if (len == null || len > arr.length) len = arr.length; for (var i = 0, arr2 = new Array(len); i < len; i++) { arr2[i] = arr[i]; } return arr2; }
-
-if (!String.prototype.matchAll) {
-    String.prototype.matchAll = function (rx) {
-        if (typeof rx === "string") rx = new RegExp(rx, "g");
-        rx = new RegExp(rx);
-        let cap = [];
-        let all = [];
-        while ((cap = rx.exec(this)) !== null) all.push(cap);
-        return all;
-    };
-}
 
 if (!Object.assign) {
     Object.defineProperty(Object, 'assign', {
