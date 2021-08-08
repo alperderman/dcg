@@ -19,19 +19,16 @@
       <p>Testing nested HTML elements inside JSON</p>
     </div>
 
-    <!--expanding the dynamic content with xml-->
+    <!--expanding the dynamic content with different definitions of xml-->
     <div dcg-obj="dynamicData.navbar" dcg-xml>
+      <menu id="menu1" title="Home" href="#home"></menu>
       <menu>
-        <title>Home</title>
-        <href>#home</href>
-      </menu>
-      <menu>
+        <id>menu2</id>
         <title>About</title>
         <href>#about</href>
       </menu>
-      <menu>
+      <menu id="menu3" href="#contact">
         <title>Contact</title>
-        <href>#contact</href>
       </menu>
     </div>
 
@@ -70,7 +67,7 @@
       <h2>Raw HTML</h2>
       <p>This paragraph is written on index.html</p>
       <h3>To-do</h3>
-      <ol>
+      <ol id="list">
         <li><s><code>beforeRender</code>, <code>afterRender</code> events</s></li>
         <li><s>Lose design and content tags for convenience</s></li>
         <li><s>Check body styles and optimize it for rendering</s></li>
