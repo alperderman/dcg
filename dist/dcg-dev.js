@@ -69,7 +69,7 @@ dcg.removeDuplicatesFromArray = function (arr) { //remove duplicated values from
     }
     return newArr;
 };
-dcg.getRecursiveValue = function (arr, keys, i) { //getting a value from multi-dimensional object
+dcg.getRecursiveValue = function (arr, keys, i) { //getting a value from a multi-dimensional object
     if (!i) {i = 0;}
     var key = keys[i], len = keys.length, val;
     if ((len > 0 && i < len) && arr.hasOwnProperty(key)) {
@@ -148,7 +148,7 @@ dcg.replaceAll = function (str, find, replace, options) { //replace all strings 
 };
 dcg.renderDesign = function (src, base) { //the main render function
     var i, externalContents, staticContents, staticContent, dynamicContents, dynamicContent, dynamicContentParse, dynamicContentNested, contentId, contentStyle, contentCss, contentRemove, designLinks, designStyles, designScripts, designTemplateReferences, designTemplateRenders, designTemplate, designTemplateId, fixedResponseText, rawTargets, rawTarget;
-    if (typeof dcg.beforeRender != 'undefined') { //if beforeRender function is defined run it
+    if (typeof dcg.beforeRender != 'undefined') { //if beforeRender function is defined, run it
         dcg.beforeRender();
     }
     if (dcg.removeCss) { //find styles from the content and tag them
@@ -307,11 +307,11 @@ dcg.renderDesign = function (src, base) { //the main render function
         return newHtml;
     }
 };
-dcg.displayTokens = function (arg) { //display tokens function inputs are: arg.data, arg.obj
+dcg.displayTokens = function (arg) { //display tokens function, inputs are: arg.data, arg.obj
     var i, tokens, token, tokenPure, tokenPureSplit, tokenData, tokenDelimiterRegex = new RegExp(dcg.tokenOpen+"[\\s\\S]*?"+dcg.tokenClose, "g");
     if (!arg) {arg = {};}
-    if (!arg.hasOwnProperty("data")) {arg.data = dcg.dataDynamic;} //default data as dcg.dataDynamic
-    if (!arg.hasOwnProperty("obj")) {arg.obj = document.body;} //default element as document.body
+    if (!arg.hasOwnProperty("data")) {arg.data = dcg.dataDynamic;} //default data is dcg.dataDynamic
+    if (!arg.hasOwnProperty("obj")) {arg.obj = document.body;} //default element is document.body
     arg.obj = arg.obj.cloneNode(true); //clone the element
     tokens = dcg.removeDuplicatesFromArray(arg.obj.innerHTML.match(tokenDelimiterRegex)); //get all tokens from the element and remove duplicated tokens
     for (i = 0;i < tokens.length;i++) { //iterate through tokens
@@ -330,7 +330,7 @@ dcg.displayTokens = function (arg) { //display tokens function inputs are: arg.d
         var i, ii, iii, arr, objRepeat, objRepeatClone, objRepeatCloneHtml, repeatAttr, repeatAttrSplit, repeatAttrSplitDot, tokenDataArray, tokenDataArrayCount, tokens, token, tokenPure, tokenPureSplit, tokenData, aliasRegex, aliasRegexMatches, aliasRegexMatch, aliasMatch, aliasReplace;
         objRepeat = dcg.getElementByAttribute(arg.obj, dcg.labelRepeat); //get the first element that has repeat attribute
         objRepeatCloneHtml = "";
-        if (objRepeat !== false) { //if there is element with repeat attribute continue
+        if (objRepeat !== false) { //if there is element with repeat attribute, continue
             repeatAttr = objRepeat.getAttribute(dcg.labelRepeat);
             repeatAttrSplit = repeatAttr.split(" ");
             repeatAttrSplitDot = repeatAttrSplit[0].split("."); //split the repeat attribute with spaces and dots
@@ -344,15 +344,15 @@ dcg.displayTokens = function (arg) { //display tokens function inputs are: arg.d
                 }
                 for (i = 0;i < tokenDataArrayCount;i++) {
                     objRepeatClone = objRepeat.cloneNode(true); //clone the element that it will be repeated
-                    tokens = dcg.removeDuplicatesFromArray(objRepeatClone.innerHTML.match(tokenDelimiterRegex)); //get all tokens inside the will be repeated element
+                    tokens = dcg.removeDuplicatesFromArray(objRepeatClone.innerHTML.match(tokenDelimiterRegex)); //get all tokens inside the repeated element
                     for (ii = 0;ii < tokens.length;ii++) {
                         token = tokens[ii];
                         tokenPure = token.substring(dcg.tokenOpen.length, token.length-dcg.tokenClose.length); //remove the token delimiters
                         tokenPureSplit = tokenPure.split(".");
                         if (tokenPureSplit[0] == repeatAttrSplit[2]) { //check if the alias defined inside the token is same as the alias on the repeat attribute
-                            tokenPureSplit.shift(); //remove the alias since we don't need it
+                            tokenPureSplit.shift(); //remove the alias since we only need the literal definitions
                             tokenData = dcg.getRecursiveValue(tokenDataArray[i], tokenPureSplit, 0); //split the token using dots and recursively get the value from the data
-                            if (!(typeof tokenData === 'object')) { //if the value is not object replace the token using regex
+                            if (!(typeof tokenData === 'object')) { //if the value is not an object, replace the token using regex
                                 objRepeatClone.innerHTML = dcg.replaceAll(objRepeatClone.innerHTML, token, tokenData, 'g');
                             }
                             aliasRegex = new RegExp("(?:<)[^>]*((?:"+dcg.labelRepeat+")(?:=)(?:\"|')(?:"+repeatAttrSplit[2]+"\\.)([^>]*?)(?:\"|'))[^>]*(?:>)", "gim");
@@ -374,7 +374,7 @@ dcg.displayTokens = function (arg) { //display tokens function inputs are: arg.d
                     objRepeatCloneHtml += objRepeatClone.innerHTML; //expand the variable with the clone element that we have processed this will be done every loop and we will insert it after the iteration
                 }
             }
-            if (objRepeatCloneHtml != "") { //if the clone elements are processed then insert the cloned element and remove the original element
+            if (objRepeatCloneHtml != "") { //if the cloned elements are processed then insert the cloned element and remove the original element
                 objRepeat.insertAdjacentHTML("afterend", objRepeatCloneHtml);
                 objRepeat.parentNode.removeChild(objRepeat);
             }
@@ -383,7 +383,7 @@ dcg.displayTokens = function (arg) { //display tokens function inputs are: arg.d
     }
     return arg.obj; //return the final element
 };
-dcg.revertBack = function () { //revert back function, load content backup if it exists
+dcg.revertBack = function () { //revert back function, loads the backup of the content if it exists
     if (typeof dcg.contentBackup != 'undefined') { //check if backup exists
         var backup = dcg.contentBackup.cloneNode(true);
         document.documentElement.innerHTML = backup.innerHTML;
@@ -396,25 +396,25 @@ dcg.revertBack = function () { //revert back function, load content backup if it
 };
 dcg.render = function (src, base) { //wrapper for renderDesign function
     dcg.revertBack(); //revert back changes
-    if (!src) {src = document.body.getAttribute(dcg.labelDesign);} //if the design source isn't defined it gets the source from the attribute
-    if (!base) {base = document.body.getAttribute(dcg.labelBase); //if the base path isn't defined its gets the base path from the attribute
-        if (!base) { //if base path still doesn't exists it sets the base path relative to the design source
+    if (!src) {src = document.body.getAttribute(dcg.labelDesign);} //if the design source isn't defined, it gets the source from the attribute
+    if (!base) {base = document.body.getAttribute(dcg.labelBase); //if the base path isn't defined, its gets the base path from the attribute
+        if (!base) { //if base path still doesn't exist, it sets the base path relative to the design source
             base = src.replace(src.substring(src.lastIndexOf('/')+1), '');
         }
     }
     dcg.renderDesign(src, base);
 };
-dcg.loadTemplate = function (arg) { //load template function inputs are: arg.id, arg.data, arg.obj
+dcg.loadTemplate = function (arg) { //load template function, inputs are: arg.id, arg.data, arg.obj
     var objClone, attrData, attrDataSplit;
     if (!arg.hasOwnProperty("id")) {return false;} //if id isn't defined then stop the function
-    if (arg.hasOwnProperty("obj")) { //if obj is defined check the data attribute of the defined element
+    if (arg.hasOwnProperty("obj")) { //if obj is defined, check the data attribute of the defined element
         attrData = arg.obj.getAttribute(dcg.labelTemplateData);
         if (attrData) {
             attrDataSplit = attrData.split(".");
             if (dcg.dataDynamic.hasOwnProperty(attrDataSplit[0])) { //check if there is an object defined on the json content
                 arg.data = dcg.getRecursiveValue(dcg.dataDynamic, attrDataSplit, 0); //split the label using dots and recursively get the value from the data
             } else {
-                arg.data = JSON.parse(attrData); //if there isn't parse the label data
+                arg.data = JSON.parse(attrData); //if there isn't, parse the label data
             }
         }
     } else { //if its not defined then set it undefined
@@ -438,7 +438,7 @@ dcg.loadTemplate = function (arg) { //load template function inputs are: arg.id,
         var template;
         if (typeof obj == 'undefined' || dcg.dataStatic.hasOwnProperty(dcg.labelTemplatePrefix+id)) { //check if template's id exists on the stored templates or obj is not defined
             template = dcg.dataStatic[dcg.labelTemplatePrefix+id];
-        } else { //if obj is defined and template id doesnt exists then store this new template with its id
+        } else { //if obj is defined and template id doesn't exist then store this new template with its id
             template = obj.cloneNode(true);
             dcg.dataStatic[dcg.labelTemplatePrefix+id] = template;
         }
@@ -446,12 +446,12 @@ dcg.loadTemplate = function (arg) { //load template function inputs are: arg.id,
     }
 };
 dcg.loadContents = function (node, callback, i) { //fetch and load external contents this is a recursive function
-    if (!node) {node = dcg.getElementsByAttribute(document.documentElement, dcg.labelSource);} //if node doesn't exists then set it to document element and get the elements with source attribute
-    if (!i) {i = 0;} //if index doesn't exists set it to 0
+    if (!node) {node = dcg.getElementsByAttribute(document.documentElement, dcg.labelSource);} //if node doesn't exist then set it to document element and get the elements with source attribute
+    if (!i) {i = 0;} //if index doesn't exist, set it to 0
     var src, len = node.length;
-    if (len > 0 && i < len) { //if there are elements with source attributes and index is lower than total elements continue
+    if (len > 0 && i < len) { //if there are elements with source attributes and index is lower than total elements, continue
         src = node[i].getAttribute(dcg.labelSource); //get the source attribute's value
-        if (src != "") { //if source is not empty then fetch the content and insert it into element then increase the index and run the function again
+        if (src != "") { //if source is not empty, fetch the content and insert it into element then increase the index and run the function again
             dcg.xhr(src, function (xhr) {
                 if (xhr.readyState == 4) {
                     if (xhr.status == 200) {
@@ -463,7 +463,7 @@ dcg.loadContents = function (node, callback, i) { //fetch and load external cont
                 }
             }, dcg.cacheRender);
         }
-    } else { //if there are no elements or index is higher than total elements then run the callback function
+    } else { //if there are no elements or index is higher than total elements, run the callback function
         if (typeof callback != 'undefined') {
             callback();
         }
@@ -473,7 +473,7 @@ dcg.loadScripts = function (node, callback, i) { //inject scripts from specified
     if (!node) {node = document.getElementsByTagName("script");} //if node is not specified then get all script elements
     if (!i) {i = 0;} //if index is not defined then set it to 0
     var len = node.length;
-    if (len > 0 && i < len) { //if there are script elements and index is lower than total elements continue
+    if (len > 0 && i < len) { //if there are script elements and index is lower than total elements, continue
         if (node[i].src) { //check if script element has source attribute if it has then fetch the external script and inject it
             dcg.getScript(node[i].src, function () {
                 i++;
@@ -518,7 +518,7 @@ dcg.parseXmlToJson = function (xml) { //convert xml to object
     }
     return json;
 };
-dcg.xhr = function (url, callback, cache, method, async) { //XHR function used for fetching external contents, scripts and templates
+dcg.xhr = function (url, callback, cache, method, async) { //xhr function used for fetching external contents, scripts and templates
     if (!cache) {cache = false;}
     if (!method) {method = 'GET';}
     if (!async) {async = true;}
@@ -576,7 +576,7 @@ dcg.getScript = function (url, callback) { //external script injection function
     }, dcg.cacheRender);
 };
 
-//Babel and polyfills
+//babel and polyfills
 
 function _typeof(obj) { "@babel/helpers - typeof"; if (typeof Symbol === "function" && typeof Symbol.iterator === "symbol") { _typeof = function _typeof(obj) { return typeof obj; }; } else { _typeof = function _typeof(obj) { return obj && typeof Symbol === "function" && obj.constructor === Symbol && obj !== Symbol.prototype ? "symbol" : typeof obj; }; } return _typeof(obj); }
 
