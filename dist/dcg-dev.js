@@ -183,7 +183,7 @@ dcg.renderDesign = function (src, base) { //the main render function
                 }else { //if it doesn't have labels, store it as it is
                     dynamicContentParse = dynamicContent.innerHTML;
                 }
-                dynamicContentNested = dcg.setNestedPropertyValue({}, contentId, dynamicContentParse); //create nested object based labelObj
+                dynamicContentNested = dcg.setNestedPropertyValue({}, contentId, dynamicContentParse); //create nested object based on labelObj
                 dcg.dataDynamic = dcg.convertToObject(dcg.mergeDeep(dcg.dataDynamic, dynamicContentNested)); //merge content with dataDynamic and convert all arrays to objects in order to nest them manually later on
             }
         }
@@ -316,7 +316,7 @@ dcg.displayTokens = function (arg) { //display tokens function inputs are: arg.d
     tokens = dcg.removeDuplicatesFromArray(arg.obj.innerHTML.match(tokenDelimiterRegex)); //get all tokens from the element and remove duplicated tokens
     for (i = 0;i < tokens.length;i++) { //iterate through tokens
         token = tokens[i];
-        tokenPure = token.substring(2, token.length-2); //remove the token delimiters
+        tokenPure = token.substring(dcg.tokenOpen.length, token.length-dcg.tokenClose.length); //remove the token delimiters
         tokenPureSplit = tokenPure.split(".");
         if(arg.data.hasOwnProperty(tokenPureSplit[0])){
             tokenData = dcg.getRecursiveValue(arg.data, tokenPureSplit, 0); //split the token using dots and recursively get the value from the data
@@ -347,7 +347,7 @@ dcg.displayTokens = function (arg) { //display tokens function inputs are: arg.d
                     tokens = dcg.removeDuplicatesFromArray(objRepeatClone.innerHTML.match(tokenDelimiterRegex)); //get all tokens inside the will be repeated element
                     for (ii = 0;ii < tokens.length;ii++) {
                         token = tokens[ii];
-                        tokenPure = token.substring(2, token.length-2); //remove the token delimiters
+                        tokenPure = token.substring(dcg.tokenOpen.length, token.length-dcg.tokenClose.length); //remove the token delimiters
                         tokenPureSplit = tokenPure.split(".");
                         if (tokenPureSplit[0] == repeatAttrSplit[2]) { //check if the alias defined inside the token is same as the alias on the repeat attribute
                             tokenPureSplit.shift(); //remove the alias since we don't need it
