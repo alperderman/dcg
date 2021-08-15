@@ -2,14 +2,15 @@
 * Dynamic Content Generation (1.0.2) 2021/08/06
 */
 var dcg = {};
-dcg.labelDesign = "dcg-design"; //design attribute: for locating design itself
-dcg.labelBase = "dcg-base"; //base attribute: for setting base path for design dependencies
+dcg.labelDesign = "dcg-design"; //design attribute: for locating the design page
+dcg.labelBase = "dcg-base"; //base attribute: for setting base path for dependencies on the design page
+dcg.baseAttrs = ["src", "href"]; //array of attributes (including labelSource) that will be replaced with base path
 dcg.labelObj = "dcg-obj"; //dynamic content attribute
 dcg.labelRaw = "dcg-raw"; //static content attribute
 dcg.labelJson = "dcg-json"; //json content attribute
 dcg.labelXml = "dcg-xml"; //xml content attribute
 dcg.labelTemplate = "dcg-temp"; //temp attribute: for indicating templates
-dcg.labelTemplateData = "dcg-data"; //data attribute: for passing raw json data to the template or binding the template with json content
+dcg.labelTemplateData = "dcg-data"; //data attribute: for passing raw json data to the template or binding the template with dynamic content
 dcg.labelTemplateReference = "dcg-tref"; //template reference attribute: for loading template for future uses
 dcg.labelTemplatePrefix = "tref_"; //prefix for indicating template references inside the dataStatic
 dcg.labelTemplateRender = "dcg-tren"; //template render attribute: for rendering the templates that has been referenced before
@@ -282,7 +283,13 @@ dcg.renderDesign = function (src, base) { //the main render function
         }
     });
     function fix_path(html, base) { //replace paths with base path
-        var i, newHtml = html, newUrl, match, matches = [], url, regex = new RegExp("(?:<)[^>]*(?:src|href|"+dcg.labelSource+")(?:=)(?:\"|')([^>]*?)(?:\"|')[^>]*(?:>)", "gim");
+        var i, newHtml = html, newUrl, match, matches = [], url, attr, attrs = "", regex;
+        for (i = 0;i < dcg.baseAttrs.length;i++) {
+            attr = dcg.baseAttrs[i];
+            attrs = attrs+attr+"|";
+        }
+        attrs = attrs+dcg.labelSource;
+        regex = new RegExp("(?:<)[^>]*(?:"+attrs+")(?:=)(?:\"|')([^>]*?)(?:\"|')[^>]*(?:>)", "gim");
         while (match = regex.exec(newHtml)) {
             matches.push(match[1]);
         }
