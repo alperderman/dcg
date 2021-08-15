@@ -13,11 +13,6 @@
     
     <!--expanding the previously defined json content-->
     <div dcg-obj="dynamicData.2222" dcg-json>{"wow" : "lorem ipsum"}</div>
-    
-    <!--you can also expand dynamic contents with raw html the only difference is the render priority is same as the dynamic contents so you cannot use tokens inside it-->
-    <div dcg-obj="dynamicData.nestedHtml">
-      <p>Testing nested HTML elements inside JSON</p>
-    </div>
 
     <!--expanding the dynamic content with different definitions of xml-->
     <div dcg-obj="dynamicData.navbar" dcg-xml>
@@ -32,7 +27,7 @@
       </menu>
     </div>
 
-    <!--multiple objects in a multi-dimensional form-->
+    <!--multiple json objects in a multi-dimensional form-->
     <div dcg-obj="base" dcg-json>{"customers":{"data":[
       {"CustomerName":"Alfreds Futterkiste","Color":"#f00","tags":["HTML", "JS", "CSS"]},
       {"CustomerName":"Ana Trujillo Emparedados y helados","Color":"#0f0","tags":{"0": "PHP", "1": "ASP"}},
@@ -105,12 +100,17 @@
       </ol>
     </div>
 
-    <!--raw html content that it will be referenced as a template on design.html with using tokens from the previously defined content (this definition works because dcg-raw's render priority is higher than json content)-->
+    <!--static raw html content that it will be referenced as a template on design.html with using tokens from the previously defined dynamic content (this definition works because static content's render priority is higher than dynamic content)-->
     <div dcg-raw="templateHtml">
       <div test="{{base.Color}}" style="color:white;background-color:{{base.Color}};width:100px;height:100px;">{{base.Color}} - {{foo}}</div>
     </div>
 
-    <!--raw html content with dcg-repeat this also will be referenced as a template on design.html-->
+    <!--you can also expand dynamic contents with raw html, the only difference is the render priority is same as the dynamic contents so you cannot use tokens inside it-->
+    <div dcg-obj="dynamicData.nestedHtml">
+      <p>Testing nested HTML elements inside JSON</p>
+    </div>
+
+    <!--raw html content with dcg-repeat, this will also be referenced as a template on design.html-->
     <div dcg-raw="templateHtml2">
       <div style="background:crimson;color:white;width:100px;height:100px;">
         <div dcg-repeat="fruits as fruit">
@@ -125,6 +125,7 @@
     </div>
 
     <script src="../dist/dcg-dev.js"></script>
+    
     <!--initiating render-->
     <script>
         dcg.beforeRender = function(){

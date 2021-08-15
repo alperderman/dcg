@@ -45,12 +45,12 @@
           <dcg dcg-src="template.html"></dcg>
         </dcg>
 
-        <!--referencing a template using the raw html content defined on the index.html and using the json content named "sweet" on index.html as a default dataset-->
+        <!--referencing a template using the raw html content defined on the index.html and using the dynamic content named "sweet" on index.html as a default dataset-->
         <dcg dcg-temp="test" dcg-data="sweet" dcg-tref>
           <dcg dcg-raw="templateHtml2"></dcg>
         </dcg>
 
-        <!--rendering the previously referenced template and changing the default dataset with dcg-data-->
+        <!--rendering the previously referenced template and changing the default dataset with dcg-data attribute-->
         <dcg dcg-temp="temple" dcg-data='{"foo": "notbar", "card2": {"Color": "#ae5"}}' dcg-tren></dcg>
 
         <!--complex examples with using multiple nested dcg-repeats, tokens, templates and custom attributes-->
