@@ -25,8 +25,8 @@
           </ul>
         </div>
 
-        <!--inserting a json content (token) and defining a custom attribute-->
-        <h1><a dcg-attr:href="" dcg-attr:custom="customtext">Dynamic Content {{dynamicData.gen}}</a></h1>
+        <!--inserting a json content (token) and defining escaped attributes-->
+        <h1><a dcg:href="" dcg:custom="customtext">Dynamic Content {{dynamicData.gen}}</a></h1>
 
         <!--inserting a html content-->
         <dcg dcg-raw="rawHtml">
@@ -62,10 +62,10 @@
         <!--rendering the previously referenced template and changing the default dataset with dcg-data attribute-->
         <dcg dcg-temp="temple" dcg-data='{"foo": "notbar", "card2": {"Color": "#ae5"}}' dcg-tren></dcg>
 
-        <!--complex examples with using multiple nested dcg-repeats, tokens, templates, conditional rendering and custom attributes-->
+        <!--complex examples with using multiple nested dcg-repeats, tokens, templates, conditional rendering and escaped attributes and tags-->
         <div id="test">
-          <div class="footer border-top border-gray-light mt-5 pt-3 text-right text-gray" dcg-attr:great="wow">
-              Test variable: <a href="#test" dcg-attr:test="asd">{{dynamicData.test}}</a>.
+          <div class="footer border-top border-gray-light mt-5 pt-3 text-right text-gray" dcg:great="wow">
+              Test variable: <dcg:a href="#test" dcg:test="asd">{{dynamicData.test}}</dcg:a>.
               
               <div class="testing123">
                 <dcg dcg-repeat="base.customers.data as card">
