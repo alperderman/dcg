@@ -78,9 +78,9 @@ dcg.getRecursiveValue = function (arr, keys, i) { //getting a value from a multi
         i++;
         if (arr.hasOwnProperty(key)) {
             val = dcg.getRecursiveValue(arr[key], keys, i);
-        }else if (arr.hasOwnProperty(key.toUpperCase())) {
+        } else if (arr.hasOwnProperty(key.toUpperCase())) {
             val = dcg.getRecursiveValue(arr[key.toUpperCase()], keys, i);
-        }else if (arr.hasOwnProperty(key.toLowerCase())) {
+        } else if (arr.hasOwnProperty(key.toLowerCase())) {
             val = dcg.getRecursiveValue(arr[key.toLowerCase()], keys, i);
         }
     }
@@ -184,9 +184,9 @@ dcg.renderDesign = function (src, base) { //the main render function
             if (dynamicContent.innerHTML != "") {
                 if (dynamicContent.hasAttribute(dcg.labelJson)) { //if it has labelJson attribute, parse json
                     dynamicContentParse = JSON.parse(dynamicContent.innerHTML);
-                }else if (dynamicContent.hasAttribute(dcg.labelXml)) { //if it has labelXml attribute, parse xml
+                } else if (dynamicContent.hasAttribute(dcg.labelXml)) { //if it has labelXml attribute, parse xml
                     dynamicContentParse = dcg.parseXML(dynamicContent);
-                }else { //if it doesn't have labels, store it as it is
+                } else { //if it doesn't have labels, store it as it is
                     dynamicContentParse = dynamicContent.innerHTML;
                 }
                 dynamicContentNested = dcg.setNestedPropertyValue({}, contentId, dynamicContentParse); //create nested object based on labelObj
@@ -319,35 +319,40 @@ dcg.renderDesign = function (src, base) { //the main render function
     }
 };
 dcg.displayTokens = function (arg) { //display tokens function, inputs are: arg.data, arg.obj
-    var i, tokens, token, tokenPure, tokenPureSplit, tokenData, tokenDelimiterRegex = new RegExp(dcg.tokenOpen+"[\\s\\S]*?"+dcg.tokenClose, "g");
+    var tokenDelimiterRegex = new RegExp(dcg.tokenOpen+"[\\s\\S]*?"+dcg.tokenClose, "g");
     if (!arg) {arg = {};}
     if (!arg.hasOwnProperty("data")) {arg.data = dcg.dataDynamic;} //default data is dcg.dataDynamic
     if (!arg.hasOwnProperty("obj")) {arg.obj = document.body;} //default element is document.body
     arg.obj = arg.obj.cloneNode(true); //clone the element
-    tokens = dcg.removeDuplicatesFromArray(arg.obj.innerHTML.match(tokenDelimiterRegex)); //get all tokens from the element and remove duplicated tokens
-    for (i = 0;i < tokens.length;i++) { //iterate through tokens
-        token = tokens[i];
-        tokenPure = token.substring(dcg.tokenOpen.length, token.length-dcg.tokenClose.length); //remove the token delimiters
-        tokenPureSplit = tokenPure.split(".");
-        if(arg.data.hasOwnProperty(tokenPureSplit[0])){
-            tokenData = dcg.getRecursiveValue(arg.data, tokenPureSplit, 0); //split the token using dots and recursively get the value from the data
-            if(!(typeof tokenData === 'object')){
-                arg.obj.innerHTML = dcg.replaceAll(arg.obj.innerHTML, token, tokenData, 'g'); //replace the token with the value using regex
-            } else {
-                arg.obj.innerHTML = dcg.replaceAll(arg.obj.innerHTML, token, JSON.stringify(tokenData), 'g');
+    //initiate the functions
+    replace_token();
+    replace_repeat();
+    replace_if();
+    function replace_token() { //replace all superficial tokens
+        var i, tokens, token, tokenPure, tokenPureSplit, tokenData;
+        tokens = dcg.removeDuplicatesFromArray(arg.obj.innerHTML.match(tokenDelimiterRegex)); //get all tokens from the element and remove duplicated tokens
+        for (i = 0;i < tokens.length;i++) { //iterate through tokens
+            token = tokens[i];
+            tokenPure = token.substring(dcg.tokenOpen.length, token.length-dcg.tokenClose.length); //remove the token delimiters
+            tokenPureSplit = tokenPure.split(".");
+            if (arg.data.hasOwnProperty(tokenPureSplit[0])) {
+                tokenData = dcg.getRecursiveValue(arg.data, tokenPureSplit, 0); //split the token using dots and recursively get the value from the data
+                if (!(typeof tokenData === 'object')) {
+                    arg.obj.innerHTML = dcg.replaceAll(arg.obj.innerHTML, token, tokenData, 'g'); //replace the token with the value using regex
+                } else {
+                    arg.obj.innerHTML = dcg.replaceAll(arg.obj.innerHTML, token, JSON.stringify(tokenData), 'g');
+                }
             }
         }
     }
-    replace_repeat();
-    replace_if();
-    function replace_repeat() { //replace repeats recursively
+    function replace_repeat() { //iterate the elements that has dcg-repeat attribute and replace tokens inside them
         var i, ii, arr, objRepeat, objRepeatClone, objRepeatCloneHtml, repeatAttr, repeatAttrSplit, repeatAttrSplitDot, tokenDataArray, tokenDataArrayCount, tokens, token, tokenPure, tokenPureSplit, tokenData, aliasRegex, aliasRegexMatches, aliasRegexMatch, aliasMatch, aliasReplace;
-        objRepeat = dcg.getElementByAttribute(arg.obj, dcg.labelRepeat); //get the first element that has repeat attribute
+        objRepeat = dcg.getElementByAttribute(arg.obj, dcg.labelRepeat); //get the first element that has dcg-repeat attribute
         objRepeatCloneHtml = "";
         if (objRepeat !== false) { //if there is element with repeat attribute, continue
             repeatAttr = objRepeat.getAttribute(dcg.labelRepeat);
             repeatAttrSplit = repeatAttr.split(" ");
-            repeatAttrSplitDot = repeatAttrSplit[0].split("."); //split the repeat attribute with spaces and dots
+            repeatAttrSplitDot = repeatAttrSplit[0].split("."); //split the dcg-repeat attribute with spaces and dots
             if (arg.data.hasOwnProperty(repeatAttrSplitDot[0]) && typeof arg.data[repeatAttrSplitDot[0]] === 'object') {
                 tokenDataArray = dcg.getRecursiveValue(arg.data, repeatAttrSplitDot, 0); //get the object or array from the data using splitted variable
                 tokenDataArrayCount;
@@ -377,7 +382,7 @@ dcg.displayTokens = function (arg) { //display tokens function, inputs are: arg.
                         token = tokens[ii];
                         tokenPure = token.substring(dcg.tokenOpen.length, token.length-dcg.tokenClose.length); //remove the token delimiters
                         tokenPureSplit = tokenPure.split(".");
-                        if (tokenPureSplit[0] == repeatAttrSplit[2]) { //check if the alias defined inside the token is same as the alias on the repeat attribute
+                        if (tokenPureSplit[0] == repeatAttrSplit[2]) { //check if the alias defined inside the token is same as the alias on the dcg-repeat attribute
                             tokenPureSplit.shift(); //remove the alias since we only need the literal definitions
                             tokenData = dcg.getRecursiveValue(tokenDataArray[i], tokenPureSplit, 0); //split the token using dots and recursively get the value from the data
                             if (!(typeof tokenData === 'object')) { //if the value is not an object, replace the token using regex
@@ -399,8 +404,8 @@ dcg.displayTokens = function (arg) { //display tokens function, inputs are: arg.
     }
     function replace_if() { //recursive conditional rendering
         var objIf, ifAttr;
-        objIf = dcg.getElementByAttribute(arg.obj, dcg.labelIf); //get the first element that has if attribute
-        if (objIf !== false) { //if there is element with repeat attribute, continue
+        objIf = dcg.getElementByAttribute(arg.obj, dcg.labelIf); //get the first element that has dcg-if attribute
+        if (objIf !== false) { //if there is element with dcg-if attribute, continue
             ifAttr = objIf.getAttribute(dcg.labelIf);
             if (ifAttr && ifAttr != "") {
                 if (eval(ifAttr)) { //evaluate the attribute, if it returns true then render the element
