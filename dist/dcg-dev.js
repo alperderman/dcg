@@ -18,7 +18,7 @@ dcg.labelSource = "dcg-src"; //external source attribute: for fetching external 
 dcg.labelRepeat = "dcg-repeat"; //repeat attribute: for iterating json contents on design
 dcg.labelIf = "dcg-if"; //if attribute: for making conditional rendering
 dcg.labelRemove = "dcg-remove"; //remove attribute: for removing elements from the content
-dcg.labelAttribute = "dcg-attr:"; //custom attribute prefix: custom attributes are used for bypassing invalid html errors when you use tokens inside attributes
+dcg.labelEscapePrefix = "dcg:"; //escape prefix: escape prefix is used for bypassing invalid html errors by escaping tags and attributes
 dcg.tokenOpen = "{{"; //opening delimiter for tokens
 dcg.tokenClose = "}}"; //closing delimiter for tokens
 dcg.dataDynamic = {}; //for storing dynamic contents, they are nestable and usable as tokens (xml and json)
@@ -258,7 +258,7 @@ dcg.renderDesign = function (src, base) { //the main render function
                                 contentRemove[i].parentNode.removeChild(contentRemove[i]);
                             }
                             document.body = dcg.displayTokens(); //insert json contents, the tokens
-                            document.body.innerHTML = replace_attr(); //replace custom attributes
+                            document.body.innerHTML = dcg.replaceEscape(); //escape all elements
                             dcg.loadScripts(document.body.getElementsByTagName("script"), function () { //inject scripts from design
                                 //remove attributes
                                 document.body.removeAttribute(dcg.labelDesign);
@@ -303,20 +303,20 @@ dcg.renderDesign = function (src, base) { //the main render function
         }
         return newHtml;
     }
-    function replace_attr(html) { //replace custom attributes
-        if (!html) {html = document.body.cloneNode(true).innerHTML;}
-        var i, newHtml = html, match, matches = [], oldAttr, newAttr, regex = new RegExp("((?:"+dcg.labelAttribute+")(?:[^>]*?)(?:=)(?:\"|')(?:[^>]*?)(?:\"|'))","gim");
-        while (match = regex.exec(newHtml)) {
-            matches.push(match[1]);
-        }
-        matches = dcg.removeDuplicatesFromArray(matches);
-        for (i = 0;i < matches.length;i++) {
-            oldAttr = matches[i];
-            newAttr = oldAttr.replace(dcg.labelAttribute, "");
-            newHtml = dcg.replaceAll(newHtml, oldAttr, newAttr, 'gim');
-        }
-        return newHtml;
+};
+dcg.replaceEscape = function (html) { //escape elements function
+    if (!html) {html = document.body.cloneNode(true).innerHTML;}
+    var i, newHtml = html, match, matches = [], oldEl, newEl, regex = new RegExp("((?:\<)(?:[^>]*?)(?:"+dcg.labelEscapePrefix+")(?:[^>]*?)(?:\>))","gm");
+    while (match = regex.exec(newHtml)) {
+        matches.push(match[1]);
     }
+    matches = dcg.removeDuplicatesFromArray(matches);
+    for (i = 0;i < matches.length;i++) {
+        oldEl = matches[i];
+        newEl = dcg.replaceAll(oldEl, dcg.labelEscapePrefix, '', 'gm')
+        newHtml = dcg.replaceAll(newHtml, oldEl, newEl, 'gm');
+    }
+    return newHtml;
 };
 dcg.displayTokens = function (arg) { //display tokens function, inputs are: arg.data, arg.obj
     var tokenDelimiterRegex = new RegExp(dcg.tokenOpen+"[\\s\\S]*?"+dcg.tokenClose, "g");
@@ -468,6 +468,7 @@ dcg.loadTemplate = function (arg) { //load template function, inputs are: arg.id
     if (arg.data) { //if data is defined then display the tokens
         objClone = dcg.displayTokens({data: arg.data, obj: objClone});
     }
+    objClone.innerHTML = dcg.replaceEscape(objClone.innerHTML); //escape elements
     return objClone;
     function init_template(id, obj) { //load template function
         var template;
