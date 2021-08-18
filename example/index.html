@@ -9,7 +9,7 @@
   <body dcg-design="design.html" dcg-base="./">
 
     <!--basic json content definition-->
-    <div dcg-obj="dynamicData" dcg-json>{"test" : "This is a variable", "2222": {"text": "123"}, "gen": "Generation"}</div>
+    <div dcg-obj="dynamicData" dcg-json>{"test" : "This is a variable", "2222": {"text": "123"}, "gen": "Generation", "condition": "true"}</div>
     
     <!--expanding the previously defined json content-->
     <div dcg-obj="dynamicData.2222" dcg-json>{"wow" : "lorem ipsum"}</div>
@@ -29,10 +29,10 @@
 
     <!--multiple json objects in a multi-dimensional form-->
     <div dcg-obj="base" dcg-json>{"customers":{"data":[
-      {"CustomerName":"Alfreds Futterkiste","Color":"#f00","tags":["HTML", "JS", "CSS"]},
-      {"CustomerName":"Ana Trujillo Emparedados y helados","Color":"#0f0","tags":{"0": "PHP", "1": "ASP"}},
-      {"CustomerName":"Antonio Moreno Taquer a","Color":"#00f","tags":["HTML", "JS"]},
-      {"CustomerName":"Around the Horn","Color":"#ff0","tags":["JS", "CSS"]}
+      {"CustomerName":"Alfreds Futterkiste","Color":"#f00","tags":["HTML", "JS", "CSS"],"grade":"43"},
+      {"CustomerName":"Ana Trujillo Emparedados y helados","Color":"#0f0","tags":{"0": "PHP", "1": "ASP"},"grade":"67"},
+      {"CustomerName":"Antonio Moreno Taquer a","Color":"#00f","tags":["HTML", "JS"],"grade":"80"},
+      {"CustomerName":"Around the Horn","Color":"#ff0","tags":["JS", "CSS"],"grade":"22"}
       ]}, "person" : [{"name": "andrew"}, {"name": "barney"}]}
     </div>
 

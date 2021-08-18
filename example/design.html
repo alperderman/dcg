@@ -40,6 +40,15 @@
         <!--inserting the html content nested into the json content-->
         {{dynamicData.nestedHtml}}
 
+        <!--render elements based on condition, don't forget to add extra quotes around the tokens if you are doing a string comparison-->
+        <dcg dcg-if="{{dynamicData.condition}}">
+          <p style="color:lightblue;">The condition is true</p>
+        </dcg>
+
+        <dcg dcg-if="!{{dynamicData.condition}}">
+          <p style="color: lightcoral;">The condition is false</p>
+        </dcg>
+
         <!--referencing an external template and defining a default json content with dcg-data that can only be used inside the template-->
         <dcg dcg-temp="temple" dcg-data='{"foo": "bar"}' dcg-tref>
           <dcg dcg-src="template.html"></dcg>
@@ -53,23 +62,38 @@
         <!--rendering the previously referenced template and changing the default dataset with dcg-data attribute-->
         <dcg dcg-temp="temple" dcg-data='{"foo": "notbar", "card2": {"Color": "#ae5"}}' dcg-tren></dcg>
 
-        <!--complex examples with using multiple nested dcg-repeats, tokens, templates and custom attributes-->
+        <!--complex examples with using multiple nested dcg-repeats, tokens, templates, conditional rendering and custom attributes-->
         <div id="test">
           <div class="footer border-top border-gray-light mt-5 pt-3 text-right text-gray" dcg-attr:great="wow">
               Test variable: <a href="#test" dcg-attr:test="asd">{{dynamicData.test}}</a>.
               
               <div class="testing123">
                 <dcg dcg-repeat="base.customers.data as card">
+
                   <dcg dcg-repeat="card.tags as tag">
-                    <a>{{tag}}</a>
+
+                    <dcg dcg-if="'{{tag}}' != 'HTML' && '{{tag}}' != 'JS'">
+                      <a>{{tag}}</a>
+                    </dcg>
+
                   </dcg>
+                  
                   <a>{{card.CustomerName}}</a>
+                  <dcg dcg-if="{{card.grade}} >= 50">
+                    <span style="color:green;">{{card.grade}} - PASS</span>
+                  </dcg>
+                  <dcg dcg-if="{{card.grade}} < 50">
+                    <span style="color:red;">{{card.grade}} - FAIL</span>
+                  </dcg>
                   {{card.divdesc}}
                   <br>
+
                 </dcg>
                 <hr>
                 <dcg dcg-repeat="base.customers.data as card2">
+
                   <dcg dcg-temp="temple" dcg-data='{"foo": "bar"}' dcg-tren></dcg>
+
                 </dcg>
               </div>
 
