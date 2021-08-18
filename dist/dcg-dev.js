@@ -1,5 +1,5 @@
 /*!
-* Dynamic Content Generation (1.0.2) 2021/08/06
+* Dynamic Content Generation (1.0.3) 2021/08/18
 */
 var dcg = {};
 dcg.labelDesign = "dcg-design"; //design attribute: for locating the design page
@@ -16,14 +16,15 @@ dcg.labelTemplatePrefix = "tref_"; //prefix for indicating template references i
 dcg.labelTemplateRender = "dcg-tren"; //template render attribute: for rendering the templates that has been referenced before
 dcg.labelSource = "dcg-src"; //external source attribute: for fetching external contents or external templates
 dcg.labelRepeat = "dcg-repeat"; //repeat attribute: for iterating json contents on design
-dcg.labelRemove = "dcg-remove"; //remove attribute: for removing css files and styles from content
+dcg.labelIf = "dcg-if"; //if attribute: for making conditional rendering
+dcg.labelRemove = "dcg-remove"; //remove attribute: for removing elements from the content
 dcg.labelAttribute = "dcg-attr:"; //custom attribute prefix: custom attributes are used for bypassing invalid html errors when you use tokens inside attributes
 dcg.tokenOpen = "{{"; //opening delimiter for tokens
 dcg.tokenClose = "}}"; //closing delimiter for tokens
 dcg.dataDynamic = {}; //for storing dynamic contents, they are nestable and usable as tokens (xml and json)
 dcg.dataStatic = {}; //for storing static contents (raw html and template references)
 dcg.contentBackup = undefined; //for reverting back to the original state of the page
-dcg.removeCss = false; //for removing the styles of the content page if set to true styles will not be carried over rendered page
+dcg.removeCss = false; //for removing the styles of the content page, if set to true styles will not be carried over rendered page
 dcg.cacheRender = false; //for caching render change it to true if its going to be used in production
 dcg.beforeRender = undefined; //for running a function before the render begins
 dcg.afterRender = undefined; //for running a function after the render finishes define a status parameter for checking if render has ended successfully or failed
@@ -251,11 +252,10 @@ dcg.renderDesign = function (src, base) { //the main render function
                                 designTemplate.insertAdjacentHTML("afterend", dcg.loadTemplate({id : designTemplateId, obj : designTemplate}).innerHTML);
                                 designTemplate.parentNode.removeChild(designTemplate);
                             }
-                            if (dcg.removeCss) { //remove tagged css from the content
-                                contentRemove = dcg.getElementsByAttribute(document.head, dcg.labelRemove);
-                                for (i = 0; i < contentRemove.length; i++) {
-                                    contentRemove[i].parentNode.removeChild(contentRemove[i]);
-                                }
+                            //remove tagged elements from the content
+                            contentRemove = dcg.getElementsByAttribute(document.documentElement, dcg.labelRemove);
+                            for (i = 0; i < contentRemove.length; i++) {
+                                contentRemove[i].parentNode.removeChild(contentRemove[i]);
                             }
                             document.body = dcg.displayTokens(); //insert json contents, the tokens
                             document.body.innerHTML = replace_attr(); //replace custom attributes
@@ -333,12 +333,15 @@ dcg.displayTokens = function (arg) { //display tokens function, inputs are: arg.
             tokenData = dcg.getRecursiveValue(arg.data, tokenPureSplit, 0); //split the token using dots and recursively get the value from the data
             if(!(typeof tokenData === 'object')){
                 arg.obj.innerHTML = dcg.replaceAll(arg.obj.innerHTML, token, tokenData, 'g'); //replace the token with the value using regex
+            } else {
+                arg.obj.innerHTML = dcg.replaceAll(arg.obj.innerHTML, token, JSON.stringify(tokenData), 'g');
             }
         }
     }
-    recursiveReplaceRepeat();
-    function recursiveReplaceRepeat() { //replace repeats recursively
-        var i, ii, iii, arr, objRepeat, objRepeatClone, objRepeatCloneHtml, repeatAttr, repeatAttrSplit, repeatAttrSplitDot, tokenDataArray, tokenDataArrayCount, tokens, token, tokenPure, tokenPureSplit, tokenData, aliasRegex, aliasRegexMatches, aliasRegexMatch, aliasMatch, aliasReplace;
+    replace_repeat();
+    replace_if();
+    function replace_repeat() { //replace repeats recursively
+        var i, ii, arr, objRepeat, objRepeatClone, objRepeatCloneHtml, repeatAttr, repeatAttrSplit, repeatAttrSplitDot, tokenDataArray, tokenDataArrayCount, tokens, token, tokenPure, tokenPureSplit, tokenData, aliasRegex, aliasRegexMatches, aliasRegexMatch, aliasMatch, aliasReplace;
         objRepeat = dcg.getElementByAttribute(arg.obj, dcg.labelRepeat); //get the first element that has repeat attribute
         objRepeatCloneHtml = "";
         if (objRepeat !== false) { //if there is element with repeat attribute, continue
@@ -355,6 +358,20 @@ dcg.displayTokens = function (arg) { //display tokens function, inputs are: arg.
                 }
                 for (i = 0;i < tokenDataArrayCount;i++) {
                     objRepeatClone = objRepeat.cloneNode(true); //clone the element that it will be repeated
+                    aliasRegex = new RegExp("(?:<)[^>]*((?:"+dcg.labelRepeat+")(?:=)(?:\"|')(?:"+repeatAttrSplit[2]+"\\.)([^>]*?)(?:\"|'))[^>]*(?:>)", "gim");
+                    aliasRegexMatches = [];
+                    //replace alias inside the cloned element to literal definition in order to repeat the child elements that uses the alias from the parent element
+                    while (aliasRegexMatch = aliasRegex.exec(objRepeatClone.innerHTML)) { //find the child elements that uses the alias from the parent element
+                        arr = [];
+                        arr.push(aliasRegexMatch[1]);
+                        arr.push(aliasRegexMatch[2]);
+                        aliasRegexMatches.push(arr);
+                    }
+                    for (ii = 0;ii < aliasRegexMatches.length;ii++) { //iterate through the all of the matches and replace them with literal definition using regex
+                        aliasMatch = aliasRegexMatches[ii];
+                        aliasReplace = dcg.labelRepeat+"='"+repeatAttrSplit[0]+"."+i+"."+aliasMatch[1]+"'";
+                        objRepeatClone.innerHTML = dcg.replaceAll(objRepeatClone.innerHTML, aliasMatch[0], aliasReplace, 'g');
+                    }
                     tokens = dcg.removeDuplicatesFromArray(objRepeatClone.innerHTML.match(tokenDelimiterRegex)); //get all tokens inside the repeated element
                     for (ii = 0;ii < tokens.length;ii++) {
                         token = tokens[ii];
@@ -365,20 +382,8 @@ dcg.displayTokens = function (arg) { //display tokens function, inputs are: arg.
                             tokenData = dcg.getRecursiveValue(tokenDataArray[i], tokenPureSplit, 0); //split the token using dots and recursively get the value from the data
                             if (!(typeof tokenData === 'object')) { //if the value is not an object, replace the token using regex
                                 objRepeatClone.innerHTML = dcg.replaceAll(objRepeatClone.innerHTML, token, tokenData, 'g');
-                            }
-                            aliasRegex = new RegExp("(?:<)[^>]*((?:"+dcg.labelRepeat+")(?:=)(?:\"|')(?:"+repeatAttrSplit[2]+"\\.)([^>]*?)(?:\"|'))[^>]*(?:>)", "gim");
-                            aliasRegexMatches = [];
-                            //replace alias inside the cloned element to literal definition in order to repeat the child elements that uses the alias from the parent element
-                            while (aliasRegexMatch = aliasRegex.exec(arg.obj.innerHTML)) { //find the child elements that uses the alias from the parent element
-                                arr = [];
-                                arr.push(aliasRegexMatch[1]);
-                                arr.push(aliasRegexMatch[2]);
-                                aliasRegexMatches.push(arr);
-                            }
-                            for (iii = 0;iii < aliasRegexMatches.length;iii++) { //iterate through the all of the matches and replace them with literal definition using regex
-                                aliasMatch = aliasRegexMatches[iii];
-                                aliasReplace = dcg.labelRepeat+"='"+repeatAttrSplit[0]+"."+i+"."+aliasMatch[1]+"'";
-                                objRepeatClone.innerHTML = dcg.replaceAll(objRepeatClone.innerHTML, aliasMatch[0], aliasReplace, 'g');
+                            } else {
+                                objRepeatClone.innerHTML = dcg.replaceAll(objRepeatClone.innerHTML, token, JSON.stringify(tokenData), 'g');
                             }
                         }
                     }
@@ -389,7 +394,21 @@ dcg.displayTokens = function (arg) { //display tokens function, inputs are: arg.
                 objRepeat.insertAdjacentHTML("afterend", objRepeatCloneHtml);
                 objRepeat.parentNode.removeChild(objRepeat);
             }
-            recursiveReplaceRepeat(); //restart the function
+            replace_repeat(); //restart the function
+        }
+    }
+    function replace_if() { //recursive conditional rendering
+        var objIf, ifAttr;
+        objIf = dcg.getElementByAttribute(arg.obj, dcg.labelIf); //get the first element that has if attribute
+        if (objIf !== false) { //if there is element with repeat attribute, continue
+            ifAttr = objIf.getAttribute(dcg.labelIf);
+            if (ifAttr && ifAttr != "") {
+                if (eval(ifAttr)) { //evaluate the attribute, if it returns true then render the element
+                    objIf.insertAdjacentHTML("afterend", objIf.innerHTML);
+                }
+            }
+            objIf.parentNode.removeChild(objIf);
+            replace_if(); //restart the function
         }
     }
     return arg.obj; //return the final element
