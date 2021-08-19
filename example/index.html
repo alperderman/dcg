@@ -29,25 +29,25 @@
 
     <!--multiple json objects in a multi-dimensional form-->
     <div dcg-obj="base" dcg-json>{"customers":{"data":[
-      {"CustomerName":"Alfreds Futterkiste","Color":"#f00","tags":["HTML", "JS", "CSS"],"grade":"43"},
-      {"CustomerName":"Ana Trujillo Emparedados y helados","Color":"#0f0","tags":{"0": "PHP", "1": "ASP"},"grade":"67"},
-      {"CustomerName":"Antonio Moreno Taquer a","Color":"#00f","tags":["HTML", "JS"],"grade":"80"},
-      {"CustomerName":"Around the Horn","Color":"#ff0","tags":["JS", "CSS"],"grade":"22"}
-      ]}, "person" : [{"name": "andrew"}, {"name": "barney"}]}
+      {"CustomerName":"Ash","Color":"#f00","tags":["HTML", "JS", "CSS"],"grade":"43"},
+      {"CustomerName":"Misty","Color":"#0f0","tags":{"0": "PHP", "1": "ASP"},"grade":"67"},
+      {"CustomerName":"Brock","Color":"#00f","tags":["HTML", "JS"],"grade":"80"},
+      {"CustomerName":"Gary","Color":"#ff0","tags":["JS", "CSS"],"grade":"22"}
+      ]}, "person" : [{"name": "Andrew"}, {"name": "Barney"}]}
     </div>
 
     <!--expanding a specific object inside the dynamic content-->
     <div dcg-obj="base.customers.data.0.divdesc">
-      <p>One of our ordinary customer</p>
+      <p>One of our special customer</p>
     </div>
     <div dcg-obj="base.customers.data.1.divdesc">
-      <p>One of our ordinary customer</p>
+      <p>One of our returning customer</p>
     </div>
     <div dcg-obj="base.customers.data.2.divdesc">
       <p>One of our ordinary customer</p>
     </div>
     <div dcg-obj="base.customers.data.3.divdesc">
-      <p>One of our ordinary customer</p>
+      <p>One of our potential customer</p>
     </div>
 
     <!--more json contents-->

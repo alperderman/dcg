@@ -40,6 +40,13 @@
         <!--inserting the html content nested into the json content-->
         {{dynamicData.nestedHtml}}
 
+        <!--using of the keywords-->
+        {{dynamicData.2222._this}}<br> <!--returns the object itself-->
+        {{dynamicData._key}}<br> <!--returns the key of the object-->
+        {{base.person.1._index}}<br> <!--returns the index of the object (_key+1)-->
+        {{dynamicData._length}}<br> <!--returns the total length of the object-->
+
+        <br>
         <!--render elements based on condition, don't forget to add extra quotes around the tokens if you are doing a string comparison-->
         <dcg dcg-if="{{dynamicData.condition}}">
           <p style="color:lightblue;">The condition is true</p>
@@ -66,19 +73,22 @@
         <div id="test">
           <div class="footer border-top border-gray-light mt-5 pt-3 text-right text-gray" dcg:great="wow">
               Test variable: <dcg:a href="#test" dcg:test="asd">{{dynamicData.test}}</dcg:a>.
-              
+              <br><br>
               <div class="testing123">
+                <span style="color:blue;font-size:1.5em;">Total of {{base.customers.data._length}} customers</span>
+                <hr>
                 <dcg dcg-repeat="base.customers.data as card">
-
                   <dcg dcg-repeat="card.tags as tag">
 
                     <dcg dcg-if="'{{tag}}' != 'HTML' && '{{tag}}' != 'JS'">
-                      <a>{{tag}}</a>
+                      <span>{{tag}}</span>
                     </dcg>
 
                   </dcg>
                   
-                  <a>{{card.CustomerName}}</a>
+                  <br>
+
+                  <span>{{card._index}} - {{card.CustomerName}}</span>
                   <dcg dcg-if="{{card.grade}} >= 50">
                     <span style="color:green;">{{card.grade}} - PASS</span>
                   </dcg>
@@ -105,6 +115,6 @@
       </div>
 
     <!--dynamically loading a template named "test" with loadTemplate function and inserting into the document.body-->
-    <script>document.body.innerHTML += dcg.loadTemplate({id:"test", data: {fruits:[{name:"orange", color:"orange"}, {name:"strawberry", color:"red"}]}}).innerHTML;</script>
+    <script>document.body.innerHTML += dcg.loadTemplate({id:"temple", data: {"foo": "notbar", "card2": {"Color": "#ae5"}}}).innerHTML;</script>
   </body>
 </html>
