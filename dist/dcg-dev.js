@@ -21,11 +21,13 @@ dcg.labelRemove = "dcg-remove"; //remove attribute: for removing elements from t
 dcg.labelEscapePrefix = "dcg:"; //escape prefix: escape prefix is used for bypassing invalid html errors by escaping tags and attributes
 dcg.tokenOpen = "{{"; //opening delimiter for tokens
 dcg.tokenClose = "}}"; //closing delimiter for tokens
+dcg.tokenKeyword = {kwThis:"_this", kwKey:"_key", kwIndex:"_index", kwLen:"_length"}; //keywords for using inside the tokens
 dcg.dataDynamic = {}; //for storing dynamic contents, they are nestable and usable as tokens (xml and json)
 dcg.dataStatic = {}; //for storing static contents (raw html and template references)
 dcg.contentBackup = undefined; //for reverting back to the original state of the page
 dcg.removeCss = false; //for removing the styles of the content page, if set to true styles will not be carried over rendered page
 dcg.cacheRender = false; //for caching render change it to true if its going to be used in production
+dcg.readyRender = false; //for checking if the render is done
 dcg.beforeRender = undefined; //for running a function before the render begins
 dcg.afterRender = undefined; //for running a function after the render finishes define a status parameter for checking if render has ended successfully or failed
 dcg.getElementsByAttribute = function (x, att, val) { //get elements by their attribute and their value
@@ -71,10 +73,17 @@ dcg.removeDuplicatesFromArray = function (arr) { //remove duplicated values from
     }
     return newArr;
 };
-dcg.getRecursiveValue = function (arr, keys, i) { //getting a value from a multi-dimensional object, case insensitive
-    if (!i) {i = 0;}
-    var key = keys[i], len = keys.length, val = arr;
-    if ((len > 0 && i < len)) {
+dcg.getRecursiveValue = function (arr, keys, i, thisKey) { //getting a value from a multi-dimensional object, case insensitive
+    if (typeof keys === 'string') {keys = keys.split('.');}
+    if (i == null) {i = 0;}
+    if (thisKey == null && i > 0) {thisKey = keys[i-1];}
+    var key = keys[i], len = keys.length, val = arr, arrLen;
+    if (!arr.length) {
+        arrLen = Object.keys(arr).length;
+    } else {
+        arrLen = arr.length;
+    }
+    if (len > 0 && i < len) {
         i++;
         if (arr.hasOwnProperty(key)) {
             val = dcg.getRecursiveValue(arr[key], keys, i);
@@ -82,6 +91,16 @@ dcg.getRecursiveValue = function (arr, keys, i) { //getting a value from a multi
             val = dcg.getRecursiveValue(arr[key.toUpperCase()], keys, i);
         } else if (arr.hasOwnProperty(key.toLowerCase())) {
             val = dcg.getRecursiveValue(arr[key.toLowerCase()], keys, i);
+        } else if (key == dcg.tokenKeyword.kwThis){
+            val = dcg.getRecursiveValue(arr, keys, i, thisKey);
+        } else if (key == dcg.tokenKeyword.kwKey && thisKey != null) {
+            val = thisKey;
+        } else if (key == dcg.tokenKeyword.kwIndex && thisKey != null && /^-?\d+$/.test(thisKey)) {
+            val = parseInt(thisKey, 10)+1;
+        } else if (key == dcg.tokenKeyword.kwLen) {
+            val = arrLen;
+        } else {
+            val = false;
         }
     }
     return val;
@@ -120,16 +139,16 @@ dcg.convertToObject = function (obj) { //function for converting arrays into obj
     return result;
 };
 dcg.mergeDeep = function (target) { //function for merging multi-dimensional objects
-    var _dcg;
+    var _dcg, _len, _key, source, key;
     for (var _len = arguments.length, sources = new Array(_len > 1 ? _len - 1 : 0), _key = 1; _key < _len; _key++) {
         sources[_key - 1] = arguments[_key];
     }
     if (!sources.length) {
         return target;
     }
-    var source = sources.shift();
+    source = sources.shift();
     if (isObject(target) && isObject(source)) {
-        for (var key in source) {
+        for (key in source) {
             if (isObject(source[key])) {
                 if (!target[key]) {
                     Object.assign(target, _defineProperty({}, key, {}));
@@ -146,7 +165,7 @@ dcg.mergeDeep = function (target) { //function for merging multi-dimensional obj
     return (_dcg = dcg).mergeDeep.apply(_dcg, [target].concat(sources));
 };
 dcg.replaceAll = function (str, find, replace, options) { //replace all strings with using regex
-    if (!options) {options = 'gim';}
+    if (options == null) {options = 'gim';}
     function escapeRegExp(string) {
         return string.replace(/[.*+\-?^${}()|[\]\\]/g, '\\$&');
     }
@@ -157,6 +176,7 @@ dcg.renderDesign = function (src, base) { //the main render function
     if (typeof dcg.beforeRender != 'undefined') { //if beforeRender function is defined, run it
         dcg.beforeRender();
     }
+    dcg.readyRender = false;
     if (dcg.removeCss) { //find styles from the content and tag them
         contentStyle = document.getElementsByTagName('style');
         contentCss = dcg.getElementsByAttribute(document.documentElement, "rel", "stylesheet");
@@ -259,6 +279,7 @@ dcg.renderDesign = function (src, base) { //the main render function
                             }
                             document.body = dcg.displayTokens(); //insert json contents, the tokens
                             document.body.innerHTML = dcg.replaceEscape(); //escape all elements
+                            dcg.readyRender = true;
                             dcg.loadScripts(document.body.getElementsByTagName("script"), function () { //inject scripts from design
                                 //remove attributes
                                 document.body.removeAttribute(dcg.labelDesign);
@@ -305,22 +326,22 @@ dcg.renderDesign = function (src, base) { //the main render function
     }
 };
 dcg.replaceEscape = function (html) { //escape elements function
-    if (!html) {html = document.body.cloneNode(true).innerHTML;}
-    var i, newHtml = html, match, matches = [], oldEl, newEl, regex = new RegExp("((?:\<)(?:[^>]*?)(?:"+dcg.labelEscapePrefix+")(?:[^>]*?)(?:\>))","gm");
+    if (html == null) {html = document.body.cloneNode(true).innerHTML;}
+    var i, newHtml = html, match, matches = [], oldEl, newEl, regex = new RegExp("(\<[^>]*?"+dcg.labelEscapePrefix+"[^>]*?\>)","gim");
     while (match = regex.exec(newHtml)) {
         matches.push(match[1]);
     }
     matches = dcg.removeDuplicatesFromArray(matches);
     for (i = 0;i < matches.length;i++) {
         oldEl = matches[i];
-        newEl = dcg.replaceAll(oldEl, dcg.labelEscapePrefix, '', 'gm')
-        newHtml = dcg.replaceAll(newHtml, oldEl, newEl, 'gm');
+        newEl = dcg.replaceAll(oldEl, dcg.labelEscapePrefix, '', 'gim');
+        newHtml = dcg.replaceAll(newHtml, oldEl, newEl, 'gim');
     }
     return newHtml;
 };
 dcg.displayTokens = function (arg) { //display tokens function, inputs are: arg.data, arg.obj
     var tokenDelimiterRegex = new RegExp(dcg.tokenOpen+"[\\s\\S]*?"+dcg.tokenClose, "g");
-    if (!arg) {arg = {};}
+    if (arg == null) {arg = {};}
     if (!arg.hasOwnProperty("data")) {arg.data = dcg.dataDynamic;} //default data is dcg.dataDynamic
     if (!arg.hasOwnProperty("obj")) {arg.obj = document.body;} //default element is document.body
     arg.obj = arg.obj.cloneNode(true); //clone the element
@@ -335,7 +356,7 @@ dcg.displayTokens = function (arg) { //display tokens function, inputs are: arg.
             token = tokens[i];
             tokenPure = token.substring(dcg.tokenOpen.length, token.length-dcg.tokenClose.length); //remove the token delimiters
             tokenPureSplit = tokenPure.split(".");
-            if (arg.data.hasOwnProperty(tokenPureSplit[0])) {
+            if (dcg.getRecursiveValue(arg.data, tokenPureSplit[0], 0) !== false) {
                 tokenData = dcg.getRecursiveValue(arg.data, tokenPureSplit, 0); //split the token using dots and recursively get the value from the data
                 if (!(typeof tokenData === 'object')) {
                     arg.obj.innerHTML = dcg.replaceAll(arg.obj.innerHTML, token, tokenData, 'g'); //replace the token with the value using regex
@@ -353,9 +374,8 @@ dcg.displayTokens = function (arg) { //display tokens function, inputs are: arg.
             repeatAttr = objRepeat.getAttribute(dcg.labelRepeat);
             repeatAttrSplit = repeatAttr.split(" ");
             repeatAttrSplitDot = repeatAttrSplit[0].split("."); //split the dcg-repeat attribute with spaces and dots
-            if (arg.data.hasOwnProperty(repeatAttrSplitDot[0]) && typeof arg.data[repeatAttrSplitDot[0]] === 'object') {
+            if (typeof dcg.getRecursiveValue(arg.data, repeatAttrSplitDot[0], 0) === 'object') {
                 tokenDataArray = dcg.getRecursiveValue(arg.data, repeatAttrSplitDot, 0); //get the object or array from the data using splitted variable
-                tokenDataArrayCount;
                 if (!tokenDataArray.length) { //if it is an object get the keys.length, if it is an array get the length
                     tokenDataArrayCount = Object.keys(tokenDataArray).length;
                 } else {
@@ -384,8 +404,8 @@ dcg.displayTokens = function (arg) { //display tokens function, inputs are: arg.
                         tokenPureSplit = tokenPure.split(".");
                         if (tokenPureSplit[0] == repeatAttrSplit[2]) { //check if the alias defined inside the token is same as the alias on the dcg-repeat attribute
                             tokenPureSplit.shift(); //remove the alias since we only need the literal definitions
-                            tokenData = dcg.getRecursiveValue(tokenDataArray[i], tokenPureSplit, 0); //split the token using dots and recursively get the value from the data
-                            if (!(typeof tokenData === 'object')) { //if the value is not an object, replace the token using regex
+                            tokenData = dcg.getRecursiveValue(tokenDataArray[i], tokenPureSplit, 0, i); //split the token using dots and recursively get the value from the data
+                            if (typeof tokenData !== 'object') { //if the value is not an object, replace the token using regex
                                 objRepeatClone.innerHTML = dcg.replaceAll(objRepeatClone.innerHTML, token, tokenData, 'g');
                             } else {
                                 objRepeatClone.innerHTML = dcg.replaceAll(objRepeatClone.innerHTML, token, JSON.stringify(tokenData), 'g');
@@ -431,8 +451,8 @@ dcg.revertBack = function () { //revert back function, loads the backup of the c
 };
 dcg.render = function (src, base) { //wrapper for renderDesign function
     dcg.revertBack(); //revert back changes
-    if (!src) {src = document.body.getAttribute(dcg.labelDesign);} //if the design source isn't defined, it gets the source from the attribute
-    if (!base) {base = document.body.getAttribute(dcg.labelBase); //if the base path isn't defined, its gets the base path from the attribute
+    if (src == null) {src = document.body.getAttribute(dcg.labelDesign);} //if the design source isn't defined, it gets the source from the attribute
+    if (base == null) {base = document.body.getAttribute(dcg.labelBase); //if the base path isn't defined, its gets the base path from the attribute
         if (!base) { //if base path still doesn't exist, it sets the base path relative to the design source
             base = src.replace(src.substring(src.lastIndexOf('/')+1), '');
         }
@@ -446,7 +466,7 @@ dcg.loadTemplate = function (arg) { //load template function, inputs are: arg.id
         attrData = arg.obj.getAttribute(dcg.labelTemplateData);
         if (attrData) {
             attrDataSplit = attrData.split(".");
-            if (dcg.dataDynamic.hasOwnProperty(attrDataSplit[0])) { //check if there is an object defined on the json content
+            if (dcg.getRecursiveValue(dcg.dataDynamic, attrDataSplit[0], 0) !== false) { //check if there is an object defined on the json content
                 arg.data = dcg.getRecursiveValue(dcg.dataDynamic, attrDataSplit, 0); //split the label using dots and recursively get the value from the data
             } else {
                 arg.data = JSON.parse(attrData); //if there isn't, parse the label data
@@ -459,7 +479,7 @@ dcg.loadTemplate = function (arg) { //load template function, inputs are: arg.id
     attrData = objClone.getAttribute(dcg.labelTemplateData); //get the referenced template's data attribute
     if ((!arg.data || !arg.hasOwnProperty("data")) && attrData) { //if data is not defined previously check if its defined on the referenced template
         attrDataSplit = attrData.split(".");
-        if (dcg.dataDynamic.hasOwnProperty(attrDataSplit[0])) { //check if there is an object defined on the json content
+        if (dcg.getRecursiveValue(dcg.dataDynamic, attrDataSplit[0], 0) !== false) { //check if there is an object defined on the json content
             arg.data = dcg.getRecursiveValue(dcg.dataDynamic, attrDataSplit, 0); //split the label using dots and recursively get the value from the data
         } else {
             arg.data = JSON.parse(attrData); //if there isn't parse the label data
@@ -468,7 +488,9 @@ dcg.loadTemplate = function (arg) { //load template function, inputs are: arg.id
     if (arg.data) { //if data is defined then display the tokens
         objClone = dcg.displayTokens({data: arg.data, obj: objClone});
     }
-    objClone.innerHTML = dcg.replaceEscape(objClone.innerHTML); //escape elements
+    if(dcg.readyRender){ //if render is done, escape elements
+        objClone.innerHTML = dcg.replaceEscape(objClone.innerHTML);
+    }
     return objClone;
     function init_template(id, obj) { //load template function
         var template;
@@ -482,8 +504,8 @@ dcg.loadTemplate = function (arg) { //load template function, inputs are: arg.id
     }
 };
 dcg.loadContents = function (node, callback, i) { //fetch and load external contents this is a recursive function
-    if (!node) {node = dcg.getElementsByAttribute(document.documentElement, dcg.labelSource);} //if node doesn't exist then set it to document element and get the elements with source attribute
-    if (!i) {i = 0;} //if index doesn't exist, set it to 0
+    if (node == null) {node = dcg.getElementsByAttribute(document.documentElement, dcg.labelSource);} //if node doesn't exist then set it to document element and get the elements with source attribute
+    if (i == null) {i = 0;} //if index doesn't exist, set it to 0
     var src, len = node.length;
     if (len > 0 && i < len) { //if there are elements with source attributes and index is lower than total elements, continue
         src = node[i].getAttribute(dcg.labelSource); //get the source attribute's value
@@ -506,8 +528,8 @@ dcg.loadContents = function (node, callback, i) { //fetch and load external cont
     }
 };
 dcg.loadScripts = function (node, callback, i) { //inject scripts from specified element this is a recursive function
-    if (!node) {node = document.getElementsByTagName("script");} //if node is not specified then get all script elements
-    if (!i) {i = 0;} //if index is not defined then set it to 0
+    if (node == null) {node = document.getElementsByTagName("script");} //if node is not specified then get all script elements
+    if (i == null) {i = 0;} //if index is not defined then set it to 0
     var len = node.length;
     if (len > 0 && i < len) { //if there are script elements and index is lower than total elements, continue
         if (node[i].src) { //check if script element has source attribute if it has then fetch the external script and inject it
@@ -530,9 +552,9 @@ dcg.parseXML = function (m, p) { //convert xml elements to object
     var f=1,o=2,d=3,n=4,j=7,c=8,h=9,l,b,a,k={},g=[];if(!p){p={}}if(typeof p=="string"){p={find:p}}p.xmlns=p.xmlns||"*";if(p.parse!="function"){p.parse=e}function e(i){return i.split(":").pop().replace(/^ows_/,"").replace(/[^a-z,A-Z,0-9]/g,"")}switch(m.nodeType){case h:a=(!p.find)?m.childNodes:(m.getElementsByTagNameNS)?m.getElementsByTagNameNS(p.xmlns,p.find.split(":").pop()):m.getElementsByTagName(p.find);for(l=0;l<a.length;l++){k=dcg.parseXML(a[l]);if(k){g.push(k)}}k=(g.length&&g.length==1)?g[0]:g;break;case f:if(m.attributes.length==0&&m.childNodes.length==1&&m.childNodes.item(0).nodeValue){k=m.childNodes.item(0).nodeValue}for(l=0;l<m.attributes.length;l++){b=p.parse(m.attributes.item(l).nodeName);k[b]=m.attributes.item(l).nodeValue}for(l=0;l<m.childNodes.length;l++){if(m.childNodes.item(l).nodeType!=d){b=p.parse(m.childNodes.item(l).nodeName);if(typeof k[b]=="undefined"){k[b]=dcg.parseXML(m.childNodes.item(l))}else{if(typeof k[b].push=="undefined"){k[b]=[k[b]]}k[b].push(dcg.parseXML(m.childNodes.item(l)))}}}break;case n:k="<![CDATA["+m.nodeValue+"]]>";break;case d:k=m.nodeValue;break;case c:k="";break;default:k=null}return k
 };
 dcg.xhr = function (url, callback, cache, method, async) { //xhr function used for fetching external contents, scripts and templates
-    if (!cache) {cache = false;}
-    if (!method) {method = 'GET';}
-    if (!async) {async = true;}
+    if (cache == null) {cache = false;}
+    if (method == null) {method = 'GET';}
+    if (async == null) {async = true;}
     var xhr, guid, cacheUrl, hashUrl;
     method = method.toUpperCase();
     if (!(method === 'GET' || method === 'POST' || method === 'HEAD')) {
