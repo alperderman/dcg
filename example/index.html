@@ -126,19 +126,17 @@
       <dcg dcg-src="https://api.exchangeratesapi.io/latest"></dcg>
     </div>
 
-    <script src="../dist/dcg-dev.js"></script>
+    <script src="../dist/dcg.js"></script>
     
     <!--initiating render-->
     <script>
-        dcg.beforeRender = function(){
-          console.log("before render");
-        };
-        dcg.afterRender = function(status){
-          if(status){
-            console.log("after render");
-          }
-        };
-        dcg.render();
+      dcg.beforeRender = function(){
+        console.log("before render");
+      };
+      dcg.afterRender = function(){
+        console.log("after render");
+      };
+      dcg.render();
     </script>
   </body>
 </html>

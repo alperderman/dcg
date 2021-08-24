@@ -5,16 +5,16 @@
     <meta http-equiv="x-ua-compatible" content="ie=edge">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>DCG | Design</title>
-    <link rel="stylesheet" href="css/markdown.css">
+    <link rel="stylesheet" href="../css/markdown.css">
     <link href="https://fonts.googleapis.com/css2?family=Nunito" rel="stylesheet">
     <style>
-      .markdown-body {
+      .markdown {
         font-family: 'Nunito', sans-serif !important;
       }
     </style>
   </head>
   <body style="background-color:whitesmoke;">
-      <div class="container-lg px-3 my-5 markdown-body">
+      <div class="col-12 lg:col-10 lg:offset-1 px-3 my-5 markdown">
 
         <!--repeating and inserting navbar menus that is defined as xml on index.html-->
         <div style="width:100%;height:auto;background-color:#ccc;">
@@ -115,6 +115,6 @@
       </div>
 
     <!--dynamically loading a template named "test" with loadTemplate function and inserting into the document.body-->
-    <script>document.body.innerHTML += dcg.loadTemplate({id:"temple", data: {"foo": "notbar", "card2": {"Color": "#ae5"}}}).innerHTML;</script>
+    <script>document.body.innerHTML += dcg.loadTemplate({id:"temple", data: {"foo": "notbar", "card2": {"Color": "#ea5"}}}).innerHTML;</script>
   </body>
 </html>
