@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>DCG | Sandbox</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1, user-scalable=no, minimal-ui" />
+</head>
+<body dcg-design="design.html" dcg-base="./">
+  <div dcg-obj="content">
+    &lt;div dcg-obj="foobar" dcg-json>
+      {"foo": "bars"}
+    &lt;/div>
+  </div>
+
+  <div dcg-obj="design">
+    &lt;body>
+      &lt;h1>{{foobar.foo}}&lt;/h1>
+    &lt;/body>
+  </div>
+
+  <div dcg-obj="presets">
+    dcg.baseAttrs = ["src", "href"];
+    dcg.tokenOpen = "{{";
+    dcg.tokenClose = "}}";
+    dcg.removeCss = false;
+    dcg.cacheRender = false;
+    dcg.beforeRender = undefined;
+    dcg.afterRender = undefined;
+  </div>
+
+  <script src="../dist/dcg.js"></script>
+  <script>
+    dcg.render();
+  </script>
+</body>
+</html>

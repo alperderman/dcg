@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>DCG | Design</title>
+  <link href="../css/markdown.css" rel="stylesheet">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1, user-scalable=no, minimal-ui" />
+  <style>
+    .editor {
+      height: 13em;
+    }
+    iframe {
+      margin: 15px 0;
+      border: 0;
+      min-height: 400px;
+      margin: 15px 0 0 0;
+    }
+  </style>
+</head>
+<body class="bg-gray-light">
+  
+  <div class="col-12 p-6 bg-gray-dark text-white text-center md:text-left">
+    <h1>Dynamic Content Generation</h1>
+    <h3 class="text-gray-light">SANDBOX</h3>
+  </div>
+  <div class="row gutter-3">
+    <div class="column col-12 lg:col-10 lg:offset-1">
+      <div class="box-shadow-2">
+        <div class="d-block text-right p-3 text-white bg-gray-dark">
+          <button class="btn bg-red box-shadow-1" onclick="clearAll()">Clear</button>
+          <button class="btn bg-green box-shadow-1" onclick="runEditor()">Render</button>
+        </div>
+        <div class="bg-white p-3 markdown">
+          <div class="row gutter-1">
+            <div class="column col-12 lg:col-4">
+              <h2 class="text-center">Content</h2>
+              <div class="editor" id="content">{{content}}</div>
+            </div>
+            <div class="column col-12 lg:col-4">
+              <h2 class="text-center">Design</h2>
+              <div class="editor" id="design">{{design}}</div>
+            </div>
+            <div class="column col-12 lg:col-4">
+              <h2 class="text-center">Presets</h2>
+              <div class="editor" id="presets">{{presets}}</div>
+            </div>
+          </div>
+          <h2 class="text-center">Preview</h2>
+          <iframe id="preview" class="col-12"></iframe>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="../js/ace/ace.js"></script>
+  <script src="../js/editor.js"></script>
+  <script>
+    var editors = {};
+    function setupEditor(id, mode) {
+      trimpre(document.getElementById(id));
+      editor = ace.edit(id);
+      editor.setTheme("ace/theme/tomorrow_night");
+      editor.getSession().setMode(mode);
+      editor.setOptions({
+        fontSize: "11pt",
+        showLineNumbers: true,
+        useWorker: false
+      });
+      editor.setShowPrintMargin(false);
+      editor.setBehavioursEnabled(false);
+      editors[id] = editor;
+      function trimpre(el) {
+        var html = el.innerHTML;
+        var pattern = html.match(/\s*\n[\t\s]*/);
+        el.innerHTML = html.replace(new RegExp(pattern, "g"),'\n').trim();
+      }
+    }
+    setupEditor("content", "ace/mode/html");
+    setupEditor("design", "ace/mode/html");
+    setupEditor("presets", "ace/mode/javascript");
+    runEditor();
+  </script>
+</body>
+</html>
