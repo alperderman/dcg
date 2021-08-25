@@ -2,12 +2,13 @@ function runEditor(){
   var content, design, preview;
   var content = editors["content"].getValue();
   var design = editors["design"].getValue();
-  var presets = editors["presets"].getValue();
-  var defaultPresets = 'dcg.baseAttr =["src","href"];dcg.tokenOpen="{{";dcg.tokenClose = "}}";dcg.removeCss=false;dcg.cacheRender=false;dcg.beforeRender=undefined;dcg.afterRender=undefined;';
-  dcg.DOMEval(defaultPresets);
-  dcg.DOMEval(presets);
+  var presets = editors["presets"].getValue().trim();
+  if (presets == "") {
+    presets = "{}";
+  }
+  var options = eval('('+presets+')');
   if (content != "" && design != "") {
-    preview = dcg.render({content: content, design: design, renderOnDom: false});
+    preview = dcg.render({content: content, design: design, renderOnDom: false, options: options});
   }else {
     preview = "";
   }
@@ -15,6 +16,7 @@ function runEditor(){
   document.getElementById('preview').contentWindow.document.write(preview);
   document.getElementById('preview').contentWindow.document.close();
 }
+
 function clearAll(){
   editors["content"].setValue("");
   editors["design"].setValue("");
