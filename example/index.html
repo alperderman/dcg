@@ -61,31 +61,8 @@
     <div dcg-raw="rawHtml">
       <h2>Raw HTML</h2>
       <p>This paragraph is written on index.html</p>
-      <h3>To-do</h3>
-      <ol id="list">
-        <li><s><code>beforeRender</code>, <code>afterRender</code> events</s></li>
-        <li><s>Lose design and content tags for convenience</s></li>
-        <li><s>Check body styles and optimize it for rendering</s></li>
-        <li><s>Check and test events for problems</s></li>
-        <li><s>Be able to use tokens inside html contents (render priority)</s></li>
-        <li><s>Be able to run local scripts</s></li>
-        <li><s>Lose JQuery dependency <code>$.getScript()</code></s></li>
-        <li><s>Get external content: <code>dcg-src="url"</code></s></li>
-        <li><s>Rewrite <code>displayTokens()</code> with regex</s></li>
-        <li><s>Implement dynamic web component templates</s></li>
-        <li><s>Fix path issue</s></li>
-        <li><s>Be able to re-render from different design after the first initial render</s></li>
-        <li><s>Be able to revert back changes</s></li>
-        <li><s>Revise the <code>displayTokens()</code> again for more convenience</s></li>
-        <li><s>Be able to parse XML contents</s></li>
-        <li><s>Be able to render elements based on condition (conditional rendering)</s></li>
-        <li>Write documentation</li>
-      </ol>
-      <div class="border-top"></div>
       <h3>Render Priority</h3>
       <ol>
-        <li>Content backup</li>
-        <li><code>beforeRender</code> function</li>
         <li>Fetching external contents</li>
         <li>Storing static contents (HTML, template references)</li>
         <li>Storing dynamic contents (JSON, XML)</li>
@@ -97,8 +74,8 @@
         <li>Inserting stored dynamic contents, displaying tokens</li>
         <li>Conditional rendering</li>
         <li>Replacing custom attributes</li>
+        <li>Jumping to anchor</li>
         <li>Injecting scripts inside the design and dispatching <code>onload</code> event</li>
-        <li><code>afterRender</code> function</li>
       </ol>
     </div>
 
@@ -130,12 +107,6 @@
     
     <!--initiating render-->
     <script>
-      dcg.beforeRender = function(){
-        console.log("before render");
-      };
-      dcg.afterRender = function(){
-        console.log("after render");
-      };
       dcg.render();
     </script>
   </body>
