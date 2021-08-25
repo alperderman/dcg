@@ -2,9 +2,22 @@
 * Dynamic Content Generation (1.0.4) 2021/08/24
 */
 var dcg = {};
+dcg.presetDefault = {
+    baseAttrs: ["src", "href"], //array of attributes (including labelSource) that will be replaced with base path
+    tokenOpen: "{{", //opening delimiter for tokens
+    tokenClose: "}}", //closing delimiter for tokens
+    removeCss: false, //for removing the styles of the content page, if set to true styles will not be carried over rendered page
+    cacheRender: false //for caching render change it to true if its going to be used in production
+};
+dcg.presetProfile = { //copy of the default presets for assigning custom options
+    baseAttrs: ["src", "href"],
+    tokenOpen: "{{",
+    tokenClose: "}}",
+    removeCss: false,
+    cacheRender: false
+};
 dcg.labelDesign = "dcg-design"; //design attribute: for locating the design page
 dcg.labelBase = "dcg-base"; //base attribute: for setting base path for dependencies on the design page
-dcg.baseAttrs = ["src", "href"]; //array of attributes (including labelSource) that will be replaced with base path
 dcg.labelObj = "dcg-obj"; //dynamic content attribute
 dcg.labelRaw = "dcg-raw"; //static content attribute
 dcg.labelJson = "dcg-json"; //json content attribute
@@ -19,22 +32,16 @@ dcg.labelRepeat = "dcg-repeat"; //repeat attribute: for iterating json contents 
 dcg.labelIf = "dcg-if"; //if attribute: for making conditional rendering
 dcg.labelRemove = "dcg-remove"; //remove attribute: for removing elements from the content
 dcg.labelEscapePrefix = "dcg:"; //escape prefix: escape prefix is used for bypassing invalid html errors by escaping tags and attributes
-dcg.tokenOpen = "{{"; //opening delimiter for tokens
-dcg.tokenClose = "}}"; //closing delimiter for tokens
 dcg.tokenKeyword = {kwThis:"_this", kwKey:"_key", kwIndex:"_index", kwLen:"_length"}; //keywords for using inside the tokens
 dcg.regexBody = new RegExp("<body[^>]*>((.|[\\n\\r])*)<\\/body>", "im"); //regex for matching body tag
 dcg.regexLinks = new RegExp("<link[^>]*>", "gim"); //regex for matching link tags
 dcg.regexStyles = new RegExp("<style[^>]*>([\\s\\S]*?)<\\/style>", "gim"); //regex for style tags
 dcg.regexScripts = new RegExp("<script[^>]*>([\\s\\S]*?)<\\/script>", "gim"); //regex for script tags
-dcg.regexTokenDelimiter = new RegExp(dcg.tokenOpen+"[\\s\\S]*?"+dcg.tokenClose, "g"); //regex for tokens
-dcg.regexEscape = new RegExp("(\\<[^>]*?"+dcg.labelEscapePrefix+"[^>]*?\\>)", "gim"); //regex for escaped elements
+dcg.regexTokenDelimiter = new RegExp(dcg.presetProfile.tokenOpen+"[\\s\\S]*?"+dcg.presetProfile.tokenClose, "g"); //regex for tokens
+dcg.regexEscape = new RegExp("(<[^>]*?"+dcg.labelEscapePrefix+"[^>]*?>)", "gim"); //regex for escaped elements
 dcg.dataDynamic = {}; //for storing dynamic contents, they are nestable and usable as tokens (xml and json)
 dcg.dataStatic = {}; //for storing static contents (raw html and template references)
-dcg.removeCss = false; //for removing the styles of the content page, if set to true styles will not be carried over rendered page
-dcg.cacheRender = false; //for caching render change it to true if its going to be used in production
 dcg.readyRender = false; //for checking if the render is done
-dcg.beforeRender = undefined; //for running a function before the render begins
-dcg.afterRender = undefined; //for running a function after the render finishes define a status parameter for checking if render has ended successfully or failed
 dcg.getElementsByAttribute = function (x, att, val) { //get elements by their attribute and their value
     if (!val) {val = "";}
     var arr = [], arrCount = -1, i, l, y = x.getElementsByTagName("*"), z = att.toUpperCase();
@@ -143,31 +150,25 @@ dcg.convertToObject = function (obj) { //function for converting arrays into obj
     }
     return result;
 };
-dcg.mergeDeep = function (target) { //function for merging multi-dimensional objects
-    var _dcg, _len, _key, source, key;
-    for (var _len = arguments.length, sources = new Array(_len > 1 ? _len - 1 : 0), _key = 1; _key < _len; _key++) {
-        sources[_key - 1] = arguments[_key];
-    }
-    if (!sources.length) {
-        return target;
-    }
-    source = sources.shift();
+dcg.mergeDeep = function (target, source) { //function for merging multi-dimensional objects
+    var output = Object.assign({}, target);
     if (isObject(target) && isObject(source)) {
-        for (key in source) {
+        Object.keys(source).forEach(function (key) {
             if (isObject(source[key])) {
-                if (!target[key]) {
-                    Object.assign(target, _defineProperty({}, key, {}));
+                if (!(key in target)) {
+                    Object.assign(output, _defineProperty({}, key, source[key]));
+                } else {
+                    output[key] = dcg.mergeDeep(target[key], source[key]);
                 }
-                dcg.mergeDeep(target[key], source[key]);
             } else {
-                Object.assign(target, _defineProperty({}, key, source[key]));
+                Object.assign(output, _defineProperty({}, key, source[key]));
             }
-        }
+        });
     }
     function isObject(item) {
         return item && _typeof(item) === 'object' && !Array.isArray(item);
     }
-    return (_dcg = dcg).mergeDeep.apply(_dcg, [target].concat(sources));
+    return output;
 };
 dcg.replaceAll = function (str, find, replace, options) { //replace all strings with using regex
     if (options == null) {options = 'gim';}
@@ -176,17 +177,18 @@ dcg.replaceAll = function (str, find, replace, options) { //replace all strings 
     }
     return str.replace(new RegExp(escapeRegExp(find), options), replace);
 };
-dcg.render = function (arg) { //wrapper for renderDesign function, inputs are: arg.content, arg.design, arg.src, arg.base, arg.renderOnDom
+dcg.render = function (arg) { //wrapper for renderDesign function, inputs are: arg.content, arg.design, arg.src, arg.base, arg.renderOnDom, arg.options
     var content, design, src, base, result, bodyLabelDesign;
+    dcg.presetProfile = dcg.mergeDeep(dcg.presetDefault); //set presetProfile to default
     if (arg == null) {arg = {};}
-    if (arg.renderOnDom == null) {arg.renderOnDom = true;}
-    if (typeof dcg.beforeRender != 'undefined') { //if beforeRender function is defined, run it
-        dcg.beforeRender();
+    if (arg.renderOnDom == null) {arg.renderOnDom = true;} //if renderOnDom is not defined then set it to true
+    if (arg.options != null && typeof arg.options == "object") { //if preset options are defined then merge it with presetProfile
+        dcg.presetProfile = dcg.mergeDeep(dcg.presetProfile, arg.options);
     }
     dcg.readyRender = false;
     //reconstruct regex expressions
-    dcg.regexTokenDelimiter = new RegExp(dcg.tokenOpen+"[\\s\\S]*?"+dcg.tokenClose, "g");
-    dcg.regexEscape = new RegExp("(\<[^>]*?"+dcg.labelEscapePrefix+"[^>]*?\>)", "gim");
+    dcg.regexTokenDelimiter = new RegExp(dcg.presetProfile.tokenOpen+"[\\s\\S]*?"+dcg.presetProfile.tokenClose, "g");
+    dcg.regexEscape = new RegExp("(<[^>]*?"+dcg.labelEscapePrefix+"[^>]*?>)", "gim");
     if (arg.content == null) { //if content is null then reference the current document as content
         if (arg.renderOnDom) {
             content = document;
@@ -259,7 +261,7 @@ dcg.render = function (arg) { //wrapper for renderDesign function, inputs are: a
 };
 dcg.renderDesign = function (arg) { //the main render function, inputs are: arg.content, arg.design, arg.base, arg.renderOnDom, arg.callback
     var i, externalContents, staticContents, staticContent, dynamicContents, dynamicContent, dynamicContentParse, dynamicContentNested, contentId, contentStyle, contentCss, fixedDesign, designLinks, designStyles, designScripts, designTemplateReferences, designTemplateRenders, designTemplate, designTemplateId, rawTargets, rawTarget;
-    if (dcg.removeCss) { //find styles from the content and mark them with labelRemove
+    if (dcg.presetProfile.removeCss) { //find styles from the content and mark them with labelRemove
         contentStyle = arg.content.getElementsByTagName('style');
         contentCss = dcg.getElementsByAttribute(arg.content.documentElement, "rel", "stylesheet");
         for (i = 0; i < contentStyle.length; i++) {
@@ -369,24 +371,19 @@ dcg.renderDesign = function (arg) { //the main render function, inputs are: arg.
                     if (typeof arg.callback != 'undefined') { //run callback
                         arg.callback(arg.content.documentElement.innerHTML);
                     }
-                    if (typeof dcg.afterRender != 'undefined') { //if afterRender function is defined then set the status true and run it
-                        dcg.afterRender();
-                    }
                 });
             } else {
                 if (typeof arg.callback != 'undefined') { //run callback
                     arg.callback(arg.content.documentElement.innerHTML);
                 }
-                if (typeof dcg.afterRender != 'undefined') { //if afterRender function is defined then set the status true and run it
-                    dcg.afterRender();
-                }
             }
+            dcg.presetProfile = dcg.mergeDeep(dcg.presetDefault); //set presetProfile to default
         });
     });
     function fix_path(html, base) { //replace paths with base path
         var i, newHtml = html, newUrl, match, matches = [], url, attr, attrs = "", regex;
-        for (i = 0;i < dcg.baseAttrs.length;i++) {
-            attr = dcg.baseAttrs[i];
+        for (i = 0;i < dcg.presetProfile.baseAttrs.length;i++) {
+            attr = dcg.presetProfile.baseAttrs[i];
             attrs = attrs+attr+"|";
         }
         attrs = attrs+dcg.labelSource;
@@ -444,7 +441,7 @@ dcg.displayTokens = function (arg) { //display tokens function, inputs are: arg.
         tokens = dcg.removeDuplicatesFromArray(arg.obj.innerHTML.match(dcg.regexTokenDelimiter)); //get all tokens from the element and remove duplicated tokens
         for (i = 0;i < tokens.length;i++) { //iterate through tokens
             token = tokens[i];
-            tokenPure = token.substring(dcg.tokenOpen.length, token.length-dcg.tokenClose.length); //remove the token delimiters
+            tokenPure = token.substring(dcg.presetProfile.tokenOpen.length, token.length-dcg.presetProfile.tokenClose.length); //remove the token delimiters
             tokenPureSplit = tokenPure.split(".");
             if (dcg.getRecursiveValue(arg.data, tokenPureSplit[0], 0) !== false) {
                 tokenData = dcg.getRecursiveValue(arg.data, tokenPureSplit, 0); //split the token using dots and recursively get the value from the data
@@ -490,7 +487,7 @@ dcg.displayTokens = function (arg) { //display tokens function, inputs are: arg.
                     tokens = dcg.removeDuplicatesFromArray(objRepeatClone.innerHTML.match(dcg.regexTokenDelimiter)); //get all tokens inside the repeated element
                     for (ii = 0;ii < tokens.length;ii++) {
                         token = tokens[ii];
-                        tokenPure = token.substring(dcg.tokenOpen.length, token.length-dcg.tokenClose.length); //remove the token delimiters
+                        tokenPure = token.substring(dcg.presetProfile.tokenOpen.length, token.length-dcg.presetProfile.tokenClose.length); //remove the token delimiters
                         tokenPureSplit = tokenPure.split(".");
                         if (tokenPureSplit[0] == repeatAttrSplit[2]) { //check if the alias defined inside the token is same as the alias on the dcg-repeat attribute
                             tokenPureSplit.shift(); //remove the alias since we only need the literal definitions
@@ -588,7 +585,7 @@ dcg.loadContents = function (node, callback, i) { //fetch and load external cont
                         dcg.loadContents(node, callback, i);
                     }
                 }
-            }, dcg.cacheRender);
+            });
         }
     } else { //if there are no elements or index is higher than total elements, run the callback function
         if (typeof callback != 'undefined') {
@@ -621,7 +618,7 @@ dcg.parseXML = function (m, p) { //convert xml elements to object
     var f=1,o=2,d=3,n=4,j=7,c=8,h=9,l,b,a,k={},g=[];if(!p){p={}}if(typeof p=="string"){p={find:p}}p.xmlns=p.xmlns||"*";if(p.parse!="function"){p.parse=e}function e(i){return i.split(":").pop().replace(/^ows_/,"").replace(/[^a-z,A-Z,0-9]/g,"")}switch(m.nodeType){case h:a=(!p.find)?m.childNodes:(m.getElementsByTagNameNS)?m.getElementsByTagNameNS(p.xmlns,p.find.split(":").pop()):m.getElementsByTagName(p.find);for(l=0;l<a.length;l++){k=dcg.parseXML(a[l]);if(k){g.push(k)}}k=(g.length&&g.length==1)?g[0]:g;break;case f:if(m.attributes.length==0&&m.childNodes.length==1&&m.childNodes.item(0).nodeValue){k=m.childNodes.item(0).nodeValue}for(l=0;l<m.attributes.length;l++){b=p.parse(m.attributes.item(l).nodeName);k[b]=m.attributes.item(l).nodeValue}for(l=0;l<m.childNodes.length;l++){if(m.childNodes.item(l).nodeType!=d){b=p.parse(m.childNodes.item(l).nodeName);if(typeof k[b]=="undefined"){k[b]=dcg.parseXML(m.childNodes.item(l))}else{if(typeof k[b].push=="undefined"){k[b]=[k[b]]}k[b].push(dcg.parseXML(m.childNodes.item(l)))}}}break;case n:k="<![CDATA["+m.nodeValue+"]]>";break;case d:k=m.nodeValue;break;case c:k="";break;default:k=null}return k
 };
 dcg.xhr = function (url, callback, cache, method, async) { //xhr function used for fetching external contents, scripts and templates
-    if (cache == null) {cache = false;}
+    if (cache == null) {cache = dcg.presetProfile.cacheRender;}
     if (method == null) {method = 'GET';}
     if (async == null) {async = true;}
     var xhr, guid, cacheUrl, hashUrl;
@@ -676,7 +673,7 @@ dcg.getScript = function (url, callback) { //external script injection function
                 setTimeout(function () {callback(xhr)}, 0);
             }
         }
-    }, dcg.cacheRender);
+    });
 };
 
 //babel and polyfills
@@ -699,17 +696,16 @@ if (!Object.assign) {
         for (var i = 1; i < arguments.length; i++) {
             var nextSource = arguments[i];
             if (nextSource === undefined || nextSource === null) {
-            continue;
+                continue;
             }
             nextSource = Object(nextSource);
-
             var keysArray = Object.keys(Object(nextSource));
             for (var nextIndex = 0, len = keysArray.length; nextIndex < len; nextIndex++) {
-            var nextKey = keysArray[nextIndex];
-            var desc = Object.getOwnPropertyDescriptor(nextSource, nextKey);
-            if (desc !== undefined && desc.enumerable) {
-                to[nextKey] = nextSource[nextKey];
-            }
+                var nextKey = keysArray[nextIndex];
+                var desc = Object.getOwnPropertyDescriptor(nextSource, nextKey);
+                if (desc !== undefined && desc.enumerable) {
+                    to[nextKey] = nextSource[nextKey];
+                }
             }
         }
         return to;
