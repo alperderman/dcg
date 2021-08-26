@@ -3,6 +3,7 @@
 */
 var dcg = {};
 dcg.presetDefault = {
+    renderOnDom: true, //render on the current document
     baseAttrs: ["src", "href"], //array of attributes (including labelSource) that will be replaced with base path
     tokenOpen: "{{", //opening delimiter for tokens
     tokenClose: "}}", //closing delimiter for tokens
@@ -10,6 +11,7 @@ dcg.presetDefault = {
     cacheRender: false //for caching render change it to true if its going to be used in production
 };
 dcg.presetProfile = { //copy of the default presets for assigning custom options
+    renderOnDom: true,
     baseAttrs: ["src", "href"],
     tokenOpen: "{{",
     tokenClose: "}}",
@@ -177,11 +179,10 @@ dcg.replaceAll = function (str, find, replace, options) { //replace all strings 
     }
     return str.replace(new RegExp(escapeRegExp(find), options), replace);
 };
-dcg.render = function (arg) { //wrapper for renderDesign function, inputs are: arg.content, arg.design, arg.src, arg.base, arg.renderOnDom, arg.options
+dcg.render = function (arg) { //wrapper for renderDesign function, inputs are: arg.content, arg.design, arg.src, arg.base, arg.options
     var content, design, src, base, result, bodyLabelDesign;
-    dcg.presetProfile = dcg.mergeDeep(dcg.presetDefault); //set presetProfile to default
     if (arg == null) {arg = {};}
-    if (arg.renderOnDom == null) {arg.renderOnDom = true;} //if renderOnDom is not defined then set it to true
+    dcg.presetProfile = dcg.mergeDeep(dcg.presetDefault); //set presetProfile to default
     if (arg.options != null && typeof arg.options == "object") { //if preset options are defined then merge it with presetProfile
         dcg.presetProfile = dcg.mergeDeep(dcg.presetProfile, arg.options);
     }
@@ -190,7 +191,7 @@ dcg.render = function (arg) { //wrapper for renderDesign function, inputs are: a
     dcg.regexTokenDelimiter = new RegExp(dcg.presetProfile.tokenOpen+"[\\s\\S]*?"+dcg.presetProfile.tokenClose, "g");
     dcg.regexEscape = new RegExp("(<[^>]*?"+dcg.labelEscapePrefix+"[^>]*?>)", "gim");
     if (arg.content == null) { //if content is null then reference the current document as content
-        if (arg.renderOnDom) {
+        if (dcg.presetProfile.renderOnDom) {
             content = document;
         } else {
             content = document.documentElement.cloneNode(true);
@@ -233,7 +234,6 @@ dcg.render = function (arg) { //wrapper for renderDesign function, inputs are: a
                         content: content,
                         design: xhr.responseText,
                         base: base,
-                        renderOnDom: arg.renderOnDom,
                         callback: function (render) {
                             result = render;
                         }
@@ -251,7 +251,6 @@ dcg.render = function (arg) { //wrapper for renderDesign function, inputs are: a
             content: content,
             design: design,
             base: base,
-            renderOnDom: arg.renderOnDom,
             callback: function (render) {
                 result = render;
             }
@@ -259,7 +258,7 @@ dcg.render = function (arg) { //wrapper for renderDesign function, inputs are: a
         return result;
     }
 };
-dcg.renderDesign = function (arg) { //the main render function, inputs are: arg.content, arg.design, arg.base, arg.renderOnDom, arg.callback
+dcg.renderDesign = function (arg) { //the main render function, inputs are: arg.content, arg.design, arg.base, arg.callback
     var i, externalContents, staticContents, staticContent, dynamicContents, dynamicContent, dynamicContentParse, dynamicContentNested, contentId, contentStyle, contentCss, fixedDesign, designLinks, designStyles, designScripts, designTemplateReferences, designTemplateRenders, designTemplate, designTemplateId, rawTargets, rawTarget;
     if (dcg.presetProfile.removeCss) { //find styles from the content and mark them with labelRemove
         contentStyle = arg.content.getElementsByTagName('style');
@@ -362,7 +361,7 @@ dcg.renderDesign = function (arg) { //the main render function, inputs are: arg.
             arg.content.body.removeAttribute(dcg.labelDesign);
             arg.content.body.removeAttribute(dcg.labelBase);
             dcg.readyRender = true;
-            if (arg.renderOnDom) {
+            if (dcg.presetProfile.renderOnDom) {
                 dcg.loadScripts(arg.content.body.getElementsByTagName("script"), function () { //inject scripts from design
                     if (window.location.hash.slice(1)) { //jump to anchor
                         arg.content.getElementById(window.location.hash.slice(1)).scrollIntoView();
