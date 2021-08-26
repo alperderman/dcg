@@ -7,8 +7,9 @@ function runEditor(){
     presets = "{}";
   }
   var options = eval('('+presets+')');
+  options.renderOnDom = false;
   if (content != "" && design != "") {
-    preview = dcg.render({content: content, design: design, renderOnDom: false, options: options});
+    preview = dcg.render({content: content, design: design, options: options});
   }else {
     preview = "";
   }
