@@ -3,7 +3,6 @@
 */
 var dcg = {};
 dcg.presetDefault = {
-    renderOnDom: true, //render on the current document
     baseAttrs: ["src", "href"], //array of attributes (including labelSource) that will be replaced with base path
     tokenOpen: "{{", //opening delimiter for tokens
     tokenClose: "}}", //closing delimiter for tokens
@@ -11,7 +10,6 @@ dcg.presetDefault = {
     cacheRender: false //for caching render change it to true if its going to be used in production
 };
 dcg.presetProfile = { //copy of the default presets for assigning custom options
-    renderOnDom: true,
     baseAttrs: ["src", "href"],
     tokenOpen: "{{",
     tokenClose: "}}",
@@ -43,7 +41,8 @@ dcg.regexTokenDelimiter = new RegExp(dcg.presetProfile.tokenOpen+"[\\s\\S]*?"+dc
 dcg.regexEscape = new RegExp("(<[^>]*?"+dcg.labelEscapePrefix+"[^>]*?>)", "gim"); //regex for escaped elements
 dcg.dataDynamic = {}; //for storing dynamic contents, they are nestable and usable as tokens (xml and json)
 dcg.dataStatic = {}; //for storing static contents (raw html and template references)
-dcg.readyRender = false; //for checking if the render is done
+dcg.renderReady = false; //for checking if the render is done
+dcg.renderDom = false; //for checking if the render will be on the current document
 dcg.getElementsByAttribute = function (x, att, val) { //get elements by their attribute and their value
     if (!val) {val = "";}
     var arr = [], arrCount = -1, i, l, y = x.getElementsByTagName("*"), z = att.toUpperCase();
@@ -179,74 +178,92 @@ dcg.replaceAll = function (str, find, replace, options) { //replace all strings 
     }
     return str.replace(new RegExp(escapeRegExp(find), options), replace);
 };
-dcg.render = function (arg) { //wrapper for renderDesign function, inputs are: arg.content, arg.design, arg.src, arg.base, arg.options
-    var content, design, src, base, result, bodyLabelDesign;
+dcg.render = function (arg) { //wrapper for renderDesign function, inputs are: arg.content, arg.contentSrc, arg.design, arg.designSrc, arg.base, arg.options
+    var result;
     if (arg == null) {arg = {};}
     dcg.presetProfile = dcg.mergeDeep(dcg.presetDefault); //set presetProfile to default
-    if (arg.options != null && typeof arg.options == "object") { //if preset options are defined then merge it with presetProfile
+    if (arg.options != null && typeof arg.options === 'object') { //if preset options are defined then merge it with presetProfile
         dcg.presetProfile = dcg.mergeDeep(dcg.presetProfile, arg.options);
     }
-    dcg.readyRender = false;
-    //reconstruct regex expressions
-    dcg.regexTokenDelimiter = new RegExp(dcg.presetProfile.tokenOpen+"[\\s\\S]*?"+dcg.presetProfile.tokenClose, "g");
-    dcg.regexEscape = new RegExp("(<[^>]*?"+dcg.labelEscapePrefix+"[^>]*?>)", "gim");
-    if (arg.content == null) { //if content is null then reference the current document as content
-        if (dcg.presetProfile.renderOnDom) {
-            content = document;
+    dcg.renderReady = false;
+    dcg.renderDom = false;
+    dcg.regexTokenDelimiter = new RegExp(dcg.presetProfile.tokenOpen+"[\\s\\S]*?"+dcg.presetProfile.tokenClose, "g"); //reconstruct token regex
+    if (arg.content == null) { //if content and contentSrc is null then reference the current document as content
+        if (arg.contentSrc == null) {
+            dcg.renderDom = true;
+            step_content(arg, document);
         } else {
-            content = document.documentElement.cloneNode(true);
-        }
-    } else { //if content is defined then check if it has body or html and parse them correctly
-        content = document.implementation.createHTMLDocument("Content");
-        if((/\<\/html\>/).test(arg.content)){
-            content.documentElement.innerHTML = arg.content;
-        } else if ((/\<\/body\>/).test(arg.content)) {
-            content.documentElement.innerHTML = content.documentElement.innerHTML.replace("<body", "<body"+arg.content.match("<body" + "(.*)" + ">")[1]);
-            content.body.innerHTML = arg.content.match(dcg.regexBody)[1];
-        } else {
-            content.body.innerHTML = arg.content;
-        }
-    }
-    if (arg.base != null) {
-        base = arg.base;
-    }
-    if (base == null) { //if base is not defined, check the base attribute
-        base = content.body.getAttribute(dcg.labelBase);
-    }
-    if (arg.design == null) { //if design is null then check for the external source in src and design attribute in order
-        if (arg.src == null) {
-            bodyLabelDesign = content.body.getAttribute(dcg.labelDesign);
-            if (bodyLabelDesign == null) {
-                return;
-            } else {
-                src = bodyLabelDesign;
-            }
-        } else {
-            src = arg.src;
-        }
-        if (base == null) {
-            base = src.replace(src.substring(src.lastIndexOf('/')+1), '');
-        }
-        dcg.xhr(src, function (xhr) {
-            if (xhr.readyState == 4) {
-                if (xhr.status == 200) {
-                    dcg.renderDesign({
-                        content: content,
-                        design: xhr.responseText,
-                        base: base,
-                        callback: function (render) {
-                            result = render;
-                        }
-                    });
-                    return result;
+            arg.contentSrc;
+            dcg.xhr(arg.contentSrc, function (xhr) {
+                if (xhr.readyState == 4) {
+                    if (xhr.status == 200) {
+                        step_content(arg, xhr.responseText);
+                    }
                 }
-            }
-        });
-    } else { //if design is defined then pass it directly
-        design = arg.design;
-        if (base == null) {
-            base = "";
+            });
         }
+    } else {
+        step_content(arg, arg.content);
+    }
+    function step_content(arg, doc) {
+        var content;
+        if (typeof doc === 'string') { //if the content is external then create new document and parse the content
+            content = document.implementation.createHTMLDocument("Content");
+            if((/\<\/html\>/).test(doc)){
+                content.documentElement.innerHTML = doc;
+            } else if ((/\<\/body\>/).test(doc)) {
+                content.documentElement.innerHTML = content.documentElement.innerHTML.replace("<body", "<body"+doc.match("<body" + "(.*)" + ">")[1]);
+                content.body.innerHTML = doc.match(dcg.regexBody)[1];
+            } else {
+                content.body.innerHTML = doc;
+            }
+        } else {
+            content = doc;
+        }
+        step_base(arg, content);
+    }
+    function step_base(arg, content) {
+        var base;
+        if (arg.base != null) {
+            base = arg.base;
+        } else { //if base is not defined, check the base attribute
+            base = content.body.getAttribute(dcg.labelBase);
+        }
+        step_design(arg, content, base);
+    }
+    function step_design(arg, content, base) {
+        var design, designSrc, bodyLabelDesign;
+        if (arg.design == null) { //if design is null then check for the external source in designSrc and design attribute in order
+            if (arg.designSrc == null) {
+                bodyLabelDesign = content.body.getAttribute(dcg.labelDesign);
+                if (bodyLabelDesign == null) {
+                    return;
+                } else {
+                    designSrc = bodyLabelDesign;
+                }
+            } else {
+                designSrc = arg.designSrc;
+            }
+            if (base == null) {
+                base = designSrc.replace(designSrc.substring(designSrc.lastIndexOf('/')+1), '');
+            }
+            dcg.xhr(designSrc, function (xhr) {
+                if (xhr.readyState == 4) {
+                    if (xhr.status == 200) {
+                        design = xhr.responseText;
+                        step_render(content, design, base);
+                    }
+                }
+            });
+        } else { //if design is defined then pass it directly
+            design = arg.design;
+            if (base == null) {
+                base = "";
+            }
+            step_render(content, design, base);
+        }
+    }
+    function step_render(content, design, base) {
         dcg.renderDesign({
             content: content,
             design: design,
@@ -255,8 +272,8 @@ dcg.render = function (arg) { //wrapper for renderDesign function, inputs are: a
                 result = render;
             }
         });
-        return result;
     }
+    return result;
 };
 dcg.renderDesign = function (arg) { //the main render function, inputs are: arg.content, arg.design, arg.base, arg.callback
     var i, externalContents, staticContents, staticContent, dynamicContents, dynamicContent, dynamicContentParse, dynamicContentNested, contentId, contentStyle, contentCss, fixedDesign, designLinks, designStyles, designScripts, designTemplateReferences, designTemplateRenders, designTemplate, designTemplateId, rawTargets, rawTarget;
@@ -360,19 +377,19 @@ dcg.renderDesign = function (arg) { //the main render function, inputs are: arg.
             //remove dcg attributes from body
             arg.content.body.removeAttribute(dcg.labelDesign);
             arg.content.body.removeAttribute(dcg.labelBase);
-            dcg.readyRender = true;
-            if (dcg.presetProfile.renderOnDom) {
+            dcg.renderReady = true;
+            if (dcg.renderDom) {
                 dcg.loadScripts(arg.content.body.getElementsByTagName("script"), function () { //inject scripts from design
                     if (window.location.hash.slice(1)) { //jump to anchor
                         arg.content.getElementById(window.location.hash.slice(1)).scrollIntoView();
                     }
                     dcg.DOMLoad(); //dispatch onload event for injected scripts
-                    if (typeof arg.callback != 'undefined') { //run callback
+                    if (typeof arg.callback !== 'undefined') { //run callback
                         arg.callback(arg.content.documentElement.innerHTML);
                     }
                 });
             } else {
-                if (typeof arg.callback != 'undefined') { //run callback
+                if (typeof arg.callback !== 'undefined') { //run callback
                     arg.callback(arg.content.documentElement.innerHTML);
                 }
             }
@@ -553,13 +570,13 @@ dcg.loadTemplate = function (arg) { //load template function, inputs are: arg.id
     if (arg.data) { //if data is defined then display the tokens
         objClone = dcg.displayTokens({data: arg.data, obj: objClone});
     }
-    if(dcg.readyRender){ //if render is done, escape elements
+    if(dcg.renderReady){ //if render is done, escape elements
         objClone.innerHTML = dcg.replaceEscape(objClone.innerHTML);
     }
     return objClone;
     function init_template(id, obj) { //load template function
         var template;
-        if (typeof obj == 'undefined' || dcg.dataStatic.hasOwnProperty(dcg.labelTemplatePrefix+id)) { //check if template's id exists on the stored templates or obj is not defined
+        if (typeof obj === 'undefined' || dcg.dataStatic.hasOwnProperty(dcg.labelTemplatePrefix+id)) { //check if template's id exists on the stored templates or obj is not defined
             template = dcg.dataStatic[dcg.labelTemplatePrefix+id];
         } else { //if obj is defined and template id doesn't exist then store this new template with its id
             template = obj.cloneNode(true);
@@ -587,7 +604,7 @@ dcg.loadContents = function (node, callback, i) { //fetch and load external cont
             });
         }
     } else { //if there are no elements or index is higher than total elements, run the callback function
-        if (typeof callback != 'undefined') {
+        if (typeof callback !== 'undefined') {
             callback();
         }
     }
@@ -608,13 +625,13 @@ dcg.loadScripts = function (node, callback, i) { //inject scripts from specified
             dcg.loadScripts(node, callback, i);
         }
     } else { //if there are no elements or index is higher than total elements then run the callback function
-        if (typeof callback != 'undefined') {
+        if (typeof callback !== 'undefined') {
             callback();
         }
     }
 };
 dcg.parseXML = function (m, p) { //convert xml elements to object
-    var f=1,o=2,d=3,n=4,j=7,c=8,h=9,l,b,a,k={},g=[];if(!p){p={}}if(typeof p=="string"){p={find:p}}p.xmlns=p.xmlns||"*";if(p.parse!="function"){p.parse=e}function e(i){return i.split(":").pop().replace(/^ows_/,"").replace(/[^a-z,A-Z,0-9]/g,"")}switch(m.nodeType){case h:a=(!p.find)?m.childNodes:(m.getElementsByTagNameNS)?m.getElementsByTagNameNS(p.xmlns,p.find.split(":").pop()):m.getElementsByTagName(p.find);for(l=0;l<a.length;l++){k=dcg.parseXML(a[l]);if(k){g.push(k)}}k=(g.length&&g.length==1)?g[0]:g;break;case f:if(m.attributes.length==0&&m.childNodes.length==1&&m.childNodes.item(0).nodeValue){k=m.childNodes.item(0).nodeValue}for(l=0;l<m.attributes.length;l++){b=p.parse(m.attributes.item(l).nodeName);k[b]=m.attributes.item(l).nodeValue}for(l=0;l<m.childNodes.length;l++){if(m.childNodes.item(l).nodeType!=d){b=p.parse(m.childNodes.item(l).nodeName);if(typeof k[b]=="undefined"){k[b]=dcg.parseXML(m.childNodes.item(l))}else{if(typeof k[b].push=="undefined"){k[b]=[k[b]]}k[b].push(dcg.parseXML(m.childNodes.item(l)))}}}break;case n:k="<![CDATA["+m.nodeValue+"]]>";break;case d:k=m.nodeValue;break;case c:k="";break;default:k=null}return k
+    var f=1,o=2,d=3,n=4,j=7,c=8,h=9,l,b,a,k={},g=[];if(!p){p={}}if(typeof p==='string'){p={find:p}}p.xmlns=p.xmlns||"*";if(p.parse!="function"){p.parse=e}function e(i){return i.split(":").pop().replace(/^ows_/,"").replace(/[^a-z,A-Z,0-9]/g,"")}switch(m.nodeType){case h:a=(!p.find)?m.childNodes:(m.getElementsByTagNameNS)?m.getElementsByTagNameNS(p.xmlns,p.find.split(":").pop()):m.getElementsByTagName(p.find);for(l=0;l<a.length;l++){k=dcg.parseXML(a[l]);if(k){g.push(k)}}k=(g.length&&g.length==1)?g[0]:g;break;case f:if(m.attributes.length==0&&m.childNodes.length==1&&m.childNodes.item(0).nodeValue){k=m.childNodes.item(0).nodeValue}for(l=0;l<m.attributes.length;l++){b=p.parse(m.attributes.item(l).nodeName);k[b]=m.attributes.item(l).nodeValue}for(l=0;l<m.childNodes.length;l++){if(m.childNodes.item(l).nodeType!=d){b=p.parse(m.childNodes.item(l).nodeName);if(typeof k[b]==='undefined'){k[b]=dcg.parseXML(m.childNodes.item(l))}else{if(typeof k[b].push==='undefined'){k[b]=[k[b]]}k[b].push(dcg.parseXML(m.childNodes.item(l)))}}}break;case n:k="<![CDATA["+m.nodeValue+"]]>";break;case d:k=m.nodeValue;break;case c:k="";break;default:k=null}return k
 };
 dcg.xhr = function (url, callback, cache, method, async) { //xhr function used for fetching external contents, scripts and templates
     if (cache == null) {cache = dcg.presetProfile.cacheRender;}
@@ -644,7 +661,7 @@ dcg.xhr = function (url, callback, cache, method, async) { //xhr function used f
 };
 dcg.DOMLoad = function () { //imitate window onload
     (function () { //polyfill for dispatchEvent
-        if (typeof window.CustomEvent === "function") {return false;}
+        if (typeof window.CustomEvent === 'function') {return false;}
         function CustomEvent(event, params) {
             params = params || {bubbles: false, cancelable: false, detail: null};
             var evt = document.createEvent('CustomEvent');
@@ -653,7 +670,7 @@ dcg.DOMLoad = function () { //imitate window onload
         }
         window.CustomEvent = CustomEvent;
     })();
-    window.dispatchEvent(new CustomEvent("DOMContentLoaded"));
+    window.dispatchEvent(new CustomEvent('DOMContentLoaded'));
     window.dispatchEvent(new CustomEvent('load'));
 };
 dcg.DOMEval = function (code) { //script injection function
@@ -668,7 +685,7 @@ dcg.getScript = function (url, callback) { //external script injection function
             if (xhr.status == 200) {
                 dcg.DOMEval(xhr.responseText);
             }
-            if (typeof callback != 'undefined') { //skip an execution frame and run callback function if its defined
+            if (typeof callback !== 'undefined') { //skip an execution frame and run callback function if its defined
                 setTimeout(function () {callback(xhr)}, 0);
             }
         }
@@ -677,7 +694,7 @@ dcg.getScript = function (url, callback) { //external script injection function
 
 //babel and polyfills
 
-function _typeof(obj) { "@babel/helpers - typeof"; if (typeof Symbol === "function" && typeof Symbol.iterator === "symbol") { _typeof = function _typeof(obj) { return typeof obj; }; } else { _typeof = function _typeof(obj) { return obj && typeof Symbol === "function" && obj.constructor === Symbol && obj !== Symbol.prototype ? "symbol" : typeof obj; }; } return _typeof(obj); }
+function _typeof(obj) { "@babel/helpers - typeof"; if (typeof Symbol === 'function' && typeof Symbol.iterator === "symbol") { _typeof = function _typeof(obj) { return typeof obj; }; } else { _typeof = function _typeof(obj) { return obj && typeof Symbol === 'function' && obj.constructor === Symbol && obj !== Symbol.prototype ? "symbol" : typeof obj; }; } return _typeof(obj); }
 
 function _defineProperty(obj, key, value) { if (key in obj) { Object.defineProperty(obj, key, { value: value, enumerable: true, configurable: true, writable: true }); } else { obj[key] = value; } return obj; }
 

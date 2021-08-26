@@ -7,10 +7,9 @@ function runEditor(){
     presets = "{}";
   }
   var options = eval('('+presets+')');
-  options.renderOnDom = false;
-  if (content != "" && design != "") {
+  if (design != "") {
     preview = dcg.render({content: content, design: design, options: options});
-  }else {
+  } else {
     preview = "";
   }
   document.getElementById('preview').contentWindow.document.open();
