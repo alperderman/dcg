@@ -21,7 +21,7 @@ dcg.default = { //default presets
     labelRaw: "dcg-raw", //static content attribute
     labelJson: "dcg-json", //json content attribute
     labelXml: "dcg-xml", //xml content attribute
-    labelHtml: "dcg-html", //xml content attribute
+    labelHtml: "dcg-html", //html content attribute
     labelTemplate: "dcg-temp", //temp attribute: for indicating templates
     labelTemplateData: "dcg-data", //data attribute: for passing raw json data to the template or binding the template with dynamic content
     labelTemplateReference: "dcg-tref", //template reference attribute: for loading template for future uses
@@ -250,13 +250,13 @@ dcg.renderDesign = function (arg) { //the main render function, inputs are: arg.
                     dynamicContentParse = JSON.parse(dynamicContent.innerHTML);
                 } else if (dynamicContent.hasAttribute(dcg.profile.labelXml)) { //if it has labelXml attribute, parse xml
                     dynamicContentParse = dcg.parseXML(dynamicContent);
-                } else if (dynamicContent.hasAttribute(dcg.profile.labelHtml)) {
+                } else if (dynamicContent.hasAttribute(dcg.profile.labelHtml)) { //if it has labelHtml attribute, clone the node
                     dynamicContentParse = dynamicContent.cloneNode(true);
                 } else { //if it doesn't have labels, store it as it is
                     dynamicContentParse = dynamicContent.innerHTML;
                 }
-                dynamicContentNested = dcg.convertToObject(dcg.setNestedPropertyValue({}, contentId, dynamicContentParse)); //create nested object based on labelObj
-                dcg.dataDynamic = dcg.mergeDeep(dcg.dataDynamic, dynamicContentNested); //merge content with dataDynamic and convert all arrays to objects in order to nest them manually later on
+                dynamicContentNested = dcg.convertToObject(dcg.setNestedPropertyValue({}, contentId, dynamicContentParse)); //create nested object based on labelObj and convert arrays into objects in order to nest them manually later on
+                dcg.dataDynamic = dcg.mergeDeep(dcg.dataDynamic, dynamicContentNested); //merge content with dataDynamic
             }
         }
         dcg.watchPrintSplit("Dynamic contents stored!");
@@ -388,11 +388,11 @@ dcg.displayTokens = function (arg) { //display tokens function, inputs are: arg.
             tokenPureSplit = tokenPure.split(".");
             if (dcg.getRecursiveValue(arg.data, tokenPureSplit[0], 0) !== false) {
                 tokenData = dcg.getRecursiveValue(arg.data, tokenPureSplit, 0); //split the token using dots and recursively get the value from the data
-                if (dcg.isElement(tokenData)) {
+                if (dcg.isElement(tokenData)) { //if the value is an html element then run the displayTokens function inside it
                     arg.obj.innerHTML = dcg.replaceAll(arg.obj.innerHTML, token, dcg.displayTokens({obj: tokenData.cloneNode(true)}).innerHTML, 'g');
-                } else if (!(typeof tokenData === 'object')) {
-                    arg.obj.innerHTML = dcg.replaceAll(arg.obj.innerHTML, token, tokenData, 'g'); //replace the token with the value using regex
-                } else {
+                } else if (!(typeof tokenData === 'object')) { //if the value is not an object, replace the token using regex
+                    arg.obj.innerHTML = dcg.replaceAll(arg.obj.innerHTML, token, tokenData, 'g');
+                } else { //if the value is an object, stringify it
                     arg.obj.innerHTML = dcg.replaceAll(arg.obj.innerHTML, token, JSON.stringify(tokenData), 'g');
                 }
             }
@@ -437,11 +437,11 @@ dcg.displayTokens = function (arg) { //display tokens function, inputs are: arg.
                         if (tokenPureSplit[0] == repeatAttrSplit[2]) { //check if the alias defined inside the token is same as the alias on the dcg-repeat attribute
                             tokenPureSplit.shift(); //remove the alias since we only need the literal definitions
                             tokenData = dcg.getRecursiveValue(tokenDataArray[i], tokenPureSplit, 0, i); //split the token using dots and recursively get the value from the data
-                            if (dcg.isElement(tokenData)) {
+                            if (dcg.isElement(tokenData)) { //if the value is an html element then run the displayTokens function inside it
                                 objRepeatClone.innerHTML = dcg.replaceAll(objRepeatClone.innerHTML, token, dcg.displayTokens({obj: tokenData.cloneNode(true)}).innerHTML, 'g');
                             } else if (typeof tokenData !== 'object') { //if the value is not an object, replace the token using regex
                                 objRepeatClone.innerHTML = dcg.replaceAll(objRepeatClone.innerHTML, token, tokenData, 'g');
-                            } else {
+                            } else { //if the value is an object, stringify it
                                 objRepeatClone.innerHTML = dcg.replaceAll(objRepeatClone.innerHTML, token, JSON.stringify(tokenData), 'g');
                             }
                         }
