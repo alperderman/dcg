@@ -279,7 +279,6 @@ dcg.renderDesign = function (arg) { //the main render function, inputs are: arg.
                     arg.callback(arg.content.documentElement.innerHTML);
                 }
             }
-            dcg.profile = dcg.mergeDeep(dcg.default); //set presetProfile to default
         });
     });
     function fix_path(html, base) { //replace paths with base path
