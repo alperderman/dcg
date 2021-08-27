@@ -25,8 +25,8 @@
           </ul>
         </div>
 
-        <!--inserting a json content (token) and defining escaped attributes-->
-        <h1><a dcg:href="" dcg:custom="customtext">Dynamic Content {{dynamicData.gen}}</a></h1>
+        <!--inserting a dynamic content (token) inside an escaped element-->
+        <dcg:h1>{{htmlTitle}}</dcg:h1>
 
         <!--inserting a html content-->
         <dcg dcg-raw="rawHtml">
@@ -45,8 +45,8 @@
         {{dynamicData._key}}<br> <!--returns the key of the object-->
         {{base.person.1._index}}<br> <!--returns the index of the object (_key+1)-->
         {{dynamicData._length}}<br> <!--returns the total length of the object-->
-
         <br>
+        
         <!--render elements based on condition, don't forget to add extra quotes around the tokens if you are doing a string comparison-->
         <dcg dcg-if="{{dynamicData.condition}}">
           <p style="color:lightblue;">The condition is true</p>
@@ -69,7 +69,7 @@
         <!--rendering the previously referenced template and changing the default dataset with dcg-data attribute-->
         <dcg dcg-temp="temple" dcg-data='{"foo": "notbar", "card2": {"Color": "#ae5"}}' dcg-tren></dcg>
 
-        <!--complex examples with using multiple nested dcg-repeats, tokens, templates, conditional rendering and escaped attributes and tags-->
+        <!--complex examples with using multiple nested dcg-repeats, tokens, templates, conditional rendering and escaped elements-->
         <div id="test">
           <div class="footer border-top border-gray-light mt-5 pt-3 text-right text-gray" dcg:great="wow">
               Test variable: <dcg:a href="#test" dcg:test="asd">{{dynamicData.test}}</dcg:a>.

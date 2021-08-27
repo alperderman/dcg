@@ -1,5 +1,5 @@
 /*!
-* Dynamic Content Generation (1.0.4) 2021/08/24
+* Dynamic Content Generation (1.0.5) 2021/08/28
 */
 
 //polyfills
@@ -10,12 +10,10 @@ function _defineProperty(obj, key, value) { if (key in obj) { Object.definePrope
 if (!Object.assign) { Object.defineProperty(Object, 'assign', { enumerable: false, configurable: true, writable: true, value: function(target) { 'use strict'; if (target === undefined || target === null) { throw new TypeError('Cannot convert first argument to object'); } var to = Object(target); for (var i = 1; i < arguments.length; i++) { var nextSource = arguments[i]; if (nextSource === undefined || nextSource === null) { continue; } nextSource = Object(nextSource); var keysArray = Object.keys(Object(nextSource)); for (var nextIndex = 0, len = keysArray.length; nextIndex < len; nextIndex++) { var nextKey = keysArray[nextIndex]; var desc = Object.getOwnPropertyDescriptor(nextSource, nextKey); if (desc !== undefined && desc.enumerable) { to[nextKey] = nextSource[nextKey]; } } } return to; } }); }
 
 var dcg = {}; //main object
-dcg.version = "1.0.4"; //version number
+dcg.version = "1.0.5"; //version number
+dcg.logPrefix = "[DCG] "; //log prefix
 dcg.default = { //default presets
     baseAttrs: ["src", "href"], //array of attributes (including labelSource) that will be replaced with base path
-    tokenOpen: "{{", //opening delimiter for tokens
-    tokenClose: "}}", //closing delimiter for tokens
-    removeCss: false, //for removing the styles of the content page, if set to true styles will not be carried over rendered page
     cacheRender: false, //for caching render change it to true if its going to be used in production
     labelDesign: "dcg-design", //design attribute: for locating the design page
     labelBase: "dcg-base", //base attribute: for setting base path for dependencies on the design page
@@ -23,6 +21,7 @@ dcg.default = { //default presets
     labelRaw: "dcg-raw", //static content attribute
     labelJson: "dcg-json", //json content attribute
     labelXml: "dcg-xml", //xml content attribute
+    labelHtml: "dcg-html", //xml content attribute
     labelTemplate: "dcg-temp", //temp attribute: for indicating templates
     labelTemplateData: "dcg-data", //data attribute: for passing raw json data to the template or binding the template with dynamic content
     labelTemplateReference: "dcg-tref", //template reference attribute: for loading template for future uses
@@ -33,7 +32,11 @@ dcg.default = { //default presets
     labelIf: "dcg-if", //if attribute: for making conditional rendering
     labelRemove: "dcg-remove", //remove attribute: for removing elements from the content
     labelEscapePrefix: "dcg:", //escape prefix: escape prefix is used for bypassing invalid html errors by escaping tags and attributes
-    tokenKeyword: {kwThis:"_this", kwKey:"_key", kwIndex:"_index", kwLen:"_length"} //keywords to be used inside the tokens
+    tokenOpen: "{{", //opening delimiter for tokens
+    tokenClose: "}}", //closing delimiter for tokens
+    tokenKeyword: {kwThis:"_this", kwKey:"_key", kwIndex:"_index", kwLen:"_length"}, //keywords to be used inside the tokens
+    showAnnotations: false,
+    removeCss: false //for removing the styles of the content page, if set to true styles will not be carried over rendered page
 };
 dcg.profile = {}; //preset profile for assigning custom presets
 dcg.dataDynamic = {}; //for storing dynamic contents, they are nestable and usable as tokens (xml and json)
@@ -46,10 +49,15 @@ dcg.regexScripts = new RegExp("<script[^>]*>([\\s\\S]*?)<\\/script>", "gim"); //
 //dynamic regex statements that depends on other variables and has to be reconstructed after every time variables are changed
 dcg.regexTokenDelimiter = new RegExp(dcg.default.tokenOpen+"[\\s\\S]*?"+dcg.default.tokenClose, "g"); //regex for tokens
 dcg.regexEscape = new RegExp("(<[^>]*?"+dcg.default.labelEscapePrefix+"[^>]*?>)", "gim"); //regex for escaped elements
+//time variables for calculating elapsed time
+dcg.watchTimeStart = 0;
+dcg.watchTimeStop = 0;
+dcg.watchTimeTotal = 0;
+dcg.watchTimeRun = false;
 dcg.renderReady = false; //for checking if the render is done
 dcg.renderDom = false; //for checking if the render will be on the current document
 dcg.init = function () { //function for initializing the engine
-    console.log("DCG "+dcg.version);
+    console.log(dcg.logPrefix+"Version: "+dcg.version);
     dcg.reset();
 };
 dcg.config = function (options) { //function for setting custom presets
@@ -64,7 +72,52 @@ dcg.reset = function () { //function for resetting the presets to their default
     dcg.profile = dcg.mergeDeep(dcg.default);
     dcg.reconstructProfile();
 };
-dcg.reconstructProfile = function () {
+dcg.watchStart = function () { //function for starting the time
+    dcg.watchTimeStart = dcg.watchGetCurrent();
+    dcg.watchTimeRun = true;
+};
+dcg.watchStop = function () { //function for stopping the time
+    dcg.watchTimeStop = dcg.watchGetCurrent();
+    dcg.watchTimeRun = false;
+};
+dcg.watchGetCurrent = function () { //function for getting the current time
+    return window.performance.now();
+};
+dcg.watchSplit = function () { //function for splitting the time
+    if (dcg.watchTimeRun) {
+        dcg.watchTimeStop = dcg.watchGetCurrent();
+    }
+    dcg.watchTimeTotal += dcg.watchTimeStop - dcg.watchTimeStart;
+    dcg.watchTimeStart = dcg.watchGetCurrent();
+};
+dcg.watchGetElapsed = function () { //function for getting the elapsed time
+    if (dcg.watchTimeRun) {
+        dcg.watchTimeStop = dcg.watchGetCurrent();
+    }
+    return dcg.watchTimeStop - dcg.watchTimeStart;
+};
+dcg.watchGetTotal = function () { //function for getting the total elapsed time
+    if (dcg.watchTimeRun) {
+        dcg.watchTimeStop = dcg.watchGetCurrent();
+    }
+    dcg.watchTimeTotal += dcg.watchTimeStop - dcg.watchTimeStart;
+    return dcg.watchTimeTotal;
+};
+dcg.watchPrint = function (text, total) { //function for printing the time
+    if (total) {
+        time = dcg.watchGetTotal();
+    } else {
+        time = dcg.watchGetElapsed();
+    }
+    if (dcg.profile.showAnnotations) {
+        console.log(dcg.logPrefix+text+" "+time+"ms");
+    }
+};
+dcg.watchPrintSplit = function (text) { //function for splitting and printing the time
+    dcg.watchPrint(text);
+    dcg.watchSplit();
+};
+dcg.reconstructProfile = function () { //function for reconstructing the presets
     dcg.regexTokenDelimiter = new RegExp(dcg.profile.tokenOpen+"[\\s\\S]*?"+dcg.profile.tokenClose, "g");
     dcg.regexEscape = new RegExp("(<[^>]*?"+dcg.profile.labelEscapePrefix+"[^>]*?>)", "gim");
 };
@@ -73,7 +126,6 @@ dcg.render = function (arg) { //wrapper for renderDesign function, inputs are: a
     if (arg == null) {arg = {};}
     dcg.renderReady = false;
     dcg.renderDom = false;
-    dcg.regexTokenDelimiter = new RegExp(dcg.profile.tokenOpen+"[\\s\\S]*?"+dcg.profile.tokenClose, "g"); //reconstruct token regex
     if (arg.content == null) { //if content and contentSrc is null then reference the current document as content
         if (arg.contentSrc == null) {
             dcg.renderDom = true;
@@ -150,12 +202,15 @@ dcg.render = function (arg) { //wrapper for renderDesign function, inputs are: a
         }
     }
     function step_render(content, design, base) {
+        dcg.watchStart();
         dcg.renderDesign({ //render the design with the given arguments
             content: content,
             design: design,
             base: base,
             callback: function (render) {
                 result = render;
+                dcg.watchStop();
+                dcg.watchPrint("Render finished! Total time:", true);
             }
         });
     }
@@ -163,6 +218,7 @@ dcg.render = function (arg) { //wrapper for renderDesign function, inputs are: a
 };
 dcg.renderDesign = function (arg) { //the main render function, inputs are: arg.content, arg.design, arg.base, arg.callback
     var i, externalContents, staticContents, staticContent, dynamicContents, dynamicContent, dynamicContentParse, dynamicContentNested, contentId, contentStyle, contentCss, fixedDesign, designLinks, designStyles, designScripts, designTemplateReferences, designTemplateRenders, designTemplate, designTemplateId, rawTargets, rawTarget;
+    dcg.watchPrint("Render started!");
     if (dcg.profile.removeCss) { //find styles from the content and mark them with labelRemove
         contentStyle = arg.content.getElementsByTagName('style');
         contentCss = dcg.getElementsByAttribute(arg.content.documentElement, "rel", "stylesheet");
@@ -175,6 +231,7 @@ dcg.renderDesign = function (arg) { //the main render function, inputs are: arg.
     }
     externalContents = dcg.getElementsByAttribute(arg.content.body, dcg.profile.labelSource); //get external contents
     dcg.loadContents(externalContents, function () { //load the external contents and then continue render
+        dcg.watchPrintSplit("Primary external contents loaded!");
         dynamicContents = dcg.getElementsByAttribute(arg.content.body, dcg.profile.labelObj); //get dynamic contents
         staticContents = dcg.getElementsByAttribute(arg.content.body, dcg.profile.labelRaw); //get raw contents
         for (i = 0; i < staticContents.length; i++) { //iterate through raw contents and store them
@@ -184,6 +241,7 @@ dcg.renderDesign = function (arg) { //the main render function, inputs are: arg.
                 dcg.dataStatic[contentId] = staticContent.innerHTML;
             }
         }
+        dcg.watchPrintSplit("Static contents stored!");
         for (i = 0; i < dynamicContents.length; i++) { //iterate through dynamic contents and store them
             dynamicContent = dynamicContents[i];
             contentId = dynamicContent.getAttribute(dcg.profile.labelObj);
@@ -192,13 +250,16 @@ dcg.renderDesign = function (arg) { //the main render function, inputs are: arg.
                     dynamicContentParse = JSON.parse(dynamicContent.innerHTML);
                 } else if (dynamicContent.hasAttribute(dcg.profile.labelXml)) { //if it has labelXml attribute, parse xml
                     dynamicContentParse = dcg.parseXML(dynamicContent);
+                } else if (dynamicContent.hasAttribute(dcg.profile.labelHtml)) {
+                    dynamicContentParse = dynamicContent.cloneNode(true);
                 } else { //if it doesn't have labels, store it as it is
                     dynamicContentParse = dynamicContent.innerHTML;
                 }
-                dynamicContentNested = dcg.setNestedPropertyValue({}, contentId, dynamicContentParse); //create nested object based on labelObj
-                dcg.dataDynamic = dcg.convertToObject(dcg.mergeDeep(dcg.dataDynamic, dynamicContentNested)); //merge content with dataDynamic and convert all arrays to objects in order to nest them manually later on
+                dynamicContentNested = dcg.convertToObject(dcg.setNestedPropertyValue({}, contentId, dynamicContentParse)); //create nested object based on labelObj
+                dcg.dataDynamic = dcg.mergeDeep(dcg.dataDynamic, dynamicContentNested); //merge content with dataDynamic and convert all arrays to objects in order to nest them manually later on
             }
         }
+        dcg.watchPrintSplit("Dynamic contents stored!");
         fixedDesign = fix_path(arg.design, arg.base); //replace paths on the design with the base path
         if ((/\<\/body\>/).test(fixedDesign)) { //if design has body then insert only the body with its attributes
             arg.content.documentElement.innerHTML = arg.content.documentElement.innerHTML.replace("<body", "<body"+fixedDesign.match("<body" + "(.*)" + ">")[1]);
@@ -231,9 +292,11 @@ dcg.renderDesign = function (arg) { //the main render function, inputs are: arg.
                 arg.content.body.innerHTML += designScripts[i];
             }
         }
+        dcg.watchPrintSplit("Dependencies added!");
         externalContents = dcg.getElementsByAttribute(arg.content.body, dcg.profile.labelSource); //get external templates
         dcg.loadContents(externalContents, function () { //load external templates and continue render
-            for (contentId in dcg.dataStatic) { //insert html contents
+            dcg.watchPrintSplit("Secondary external contents loaded!");
+            for (contentId in dcg.dataStatic) { //insert raw contents
                 rawTargets = dcg.getElementsByAttribute(arg.content.body, dcg.profile.labelRaw, contentId);
                 for (i = 0; i < rawTargets.length; i++) {
                     rawTarget = rawTargets[i];
@@ -241,6 +304,7 @@ dcg.renderDesign = function (arg) { //the main render function, inputs are: arg.
                     rawTarget.parentNode.removeChild(rawTarget);
                 }
             }
+            dcg.watchPrintSplit("Static contents inserted!");
             //store the referenced templates
             designTemplateReferences = dcg.getElementsByAttribute(arg.content.body, dcg.profile.labelTemplateReference);
             for (i = 0;i < designTemplateReferences.length;i++) {
@@ -257,15 +321,18 @@ dcg.renderDesign = function (arg) { //the main render function, inputs are: arg.
                 designTemplate.insertAdjacentHTML("afterend", dcg.loadTemplate({id : designTemplateId, obj : designTemplate}).innerHTML);
                 designTemplate.parentNode.removeChild(designTemplate);
             }
-            arg.content.documentElement.innerHTML = dcg.removeMarked(arg.content.documentElement); //remove marked elements from the content
-            arg.content.body = dcg.displayTokens({obj: arg.content.body}); //insert json contents, the tokens
+            dcg.watchPrintSplit("Templates rendered!");
+            arg.content.body = dcg.displayTokens({obj: arg.content.body}); //insert dynamic contents, display the tokens
+            dcg.watchPrintSplit("Dynamic contents inserted!");
             arg.content.body.innerHTML = dcg.replaceEscape(arg.content.body.innerHTML); //escape all elements
-            //remove dcg attributes from body
+            //removing marked elements and design, base attributes from the content
+            arg.content.documentElement.innerHTML = dcg.removeMarked(arg.content.documentElement);
             arg.content.body.removeAttribute(dcg.profile.labelDesign);
             arg.content.body.removeAttribute(dcg.profile.labelBase);
             dcg.renderReady = true;
             if (dcg.renderDom) {
                 dcg.loadScripts(arg.content.body.getElementsByTagName("script"), function () { //inject scripts from design
+                    dcg.watchPrintSplit("Scripts injected!");
                     if (window.location.hash.slice(1)) { //jump to anchor
                         arg.content.getElementById(window.location.hash.slice(1)).scrollIntoView();
                     }
@@ -321,7 +388,9 @@ dcg.displayTokens = function (arg) { //display tokens function, inputs are: arg.
             tokenPureSplit = tokenPure.split(".");
             if (dcg.getRecursiveValue(arg.data, tokenPureSplit[0], 0) !== false) {
                 tokenData = dcg.getRecursiveValue(arg.data, tokenPureSplit, 0); //split the token using dots and recursively get the value from the data
-                if (!(typeof tokenData === 'object')) {
+                if (dcg.isElement(tokenData)) {
+                    arg.obj.innerHTML = dcg.replaceAll(arg.obj.innerHTML, token, dcg.displayTokens({obj: tokenData.cloneNode(true)}).innerHTML, 'g');
+                } else if (!(typeof tokenData === 'object')) {
                     arg.obj.innerHTML = dcg.replaceAll(arg.obj.innerHTML, token, tokenData, 'g'); //replace the token with the value using regex
                 } else {
                     arg.obj.innerHTML = dcg.replaceAll(arg.obj.innerHTML, token, JSON.stringify(tokenData), 'g');
@@ -368,7 +437,9 @@ dcg.displayTokens = function (arg) { //display tokens function, inputs are: arg.
                         if (tokenPureSplit[0] == repeatAttrSplit[2]) { //check if the alias defined inside the token is same as the alias on the dcg-repeat attribute
                             tokenPureSplit.shift(); //remove the alias since we only need the literal definitions
                             tokenData = dcg.getRecursiveValue(tokenDataArray[i], tokenPureSplit, 0, i); //split the token using dots and recursively get the value from the data
-                            if (typeof tokenData !== 'object') { //if the value is not an object, replace the token using regex
+                            if (dcg.isElement(tokenData)) {
+                                objRepeatClone.innerHTML = dcg.replaceAll(objRepeatClone.innerHTML, token, dcg.displayTokens({obj: tokenData.cloneNode(true)}).innerHTML, 'g');
+                            } else if (typeof tokenData !== 'object') { //if the value is not an object, replace the token using regex
                                 objRepeatClone.innerHTML = dcg.replaceAll(objRepeatClone.innerHTML, token, tokenData, 'g');
                             } else {
                                 objRepeatClone.innerHTML = dcg.replaceAll(objRepeatClone.innerHTML, token, JSON.stringify(tokenData), 'g');
@@ -425,6 +496,9 @@ dcg.removeMarked = function (node) { //remove elements that has labelRemove attr
         }
     }
     return newHtml.innerHTML;
+};
+dcg.isElement = function (el) { //check if html element function
+    return el instanceof Element || el instanceof HTMLDocument;  
 };
 dcg.getElementsByAttribute = function (x, att, val) { //get elements by their attribute and their value
     if (!val) {val = "";}
@@ -517,7 +591,7 @@ dcg.convertToObject = function (obj) { //function for converting arrays into obj
     if (Array.isArray(obj)) {
         obj = toObject(obj);
     }
-    if (typeof obj === 'object') {
+    if (typeof obj === 'object' && !dcg.isElement(obj)) {
         for (var property in obj) {
             if (obj.hasOwnProperty(property)) {
                 result[property] = dcg.convertToObject(obj[property]);

@@ -14,6 +14,11 @@
     <!--expanding the previously defined json content-->
     <div dcg-obj="dynamicData.2222" dcg-json>{"wow" : "lorem ipsum"}</div>
 
+    <!--defining a token inside a dynamic html content, normally you cannot use tokens inside a dynamic content because of the render priority, this definition is only possible for dynamic html contents-->
+    <div dcg-obj="htmlTitle" dcg-html>
+      <a dcg:href="" dcg:custom="customtext">Dynamic Content {{dynamicData.gen}}</a>
+    </div>
+    
     <!--expanding the dynamic content with different definitions of xml-->
     <div dcg-obj="dynamicData.navbar" dcg-xml>
       <menu id="menu1" title="Home" href="#home"></menu>
@@ -36,7 +41,7 @@
       ]}, "person" : [{"name": "Andrew"}, {"name": "Barney"}]}
     </div>
 
-    <!--expanding a specific object inside the dynamic content-->
+    <!--expanding a specific object inside the dynamic content with unmarked dynamic content-->
     <div dcg-obj="base.customers.data.0.divdesc">
       <p>One of our special customer</p>
     </div>
@@ -105,8 +110,9 @@
 
     <script src="../dist/dcg.js"></script>
     
-    <!--initiating render-->
+    <!--configuring and initiating the render-->
     <script>
+      dcg.config({showAnnotations: true});
       dcg.render();
     </script>
   </body>
