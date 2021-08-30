@@ -43,8 +43,8 @@
         <!--using of the keywords-->
         {{dynamicData.2222._this}}<br> <!--returns the object itself-->
         {{dynamicData._key}}<br> <!--returns the key of the object-->
-        {{base.person.1._index}}<br> <!--returns the index of the object (_key+1)-->
         {{dynamicData._length}}<br> <!--returns the total length of the object-->
+        
         <br>
         
         <!--render elements based on condition, don't forget to add extra quotes around the tokens if you are doing a string comparison-->
@@ -55,6 +55,9 @@
         <dcg dcg-if="!{{dynamicData.condition}}">
           <p style="color: lightcoral;">The condition is false</p>
         </dcg>
+
+        <!--using eval expression to sum 2 numbers-->
+        <p>Sum of {{dynamicData.sum1}} and {{dynamicData.sum2}} is !%{{dynamicData.sum1}}+{{dynamicData.sum2}}%!</p>
 
         <!--referencing an external template and defining a default json content with dcg-data that can only be used inside the template-->
         <dcg dcg-temp="temple" dcg-data='{"foo": "bar"}' dcg-tref>
@@ -69,7 +72,7 @@
         <!--rendering the previously referenced template and changing the default dataset with dcg-data attribute-->
         <dcg dcg-temp="temple" dcg-data='{"foo": "notbar", "card2": {"Color": "#ae5"}}' dcg-tren></dcg>
 
-        <!--complex examples with using multiple nested dcg-repeats, tokens, templates, conditional rendering and escaped elements-->
+        <!--complex example with using multiple nested dcg-repeats, tokens, templates, conditional rendering, escaped elements and eval expression-->
         <div id="test">
           <div class="footer border-top border-gray-light mt-5 pt-3 text-right text-gray" dcg:great="wow">
               Test variable: <dcg:a href="#test" dcg:test="asd">{{dynamicData.test}}</dcg:a>.
@@ -78,17 +81,16 @@
                 <span style="color:blue;font-size:1.5em;">Total of {{base.customers.data._length}} customers</span>
                 <hr>
                 <dcg dcg-repeat="base.customers.data as card">
-                  <dcg dcg-repeat="card.tags as tag">
 
+                  <dcg dcg-repeat="card.tags as tag">
                     <dcg dcg-if="'{{tag}}' != 'HTML' && '{{tag}}' != 'JS'">
                       <span>{{tag}}</span>
                     </dcg>
-
                   </dcg>
                   
                   <br>
 
-                  <span>{{card._index}} - {{card.CustomerName}}</span>
+                  <span>!%{{card._index}}+1%! - {{card.CustomerName}}</span>
                   <dcg dcg-if="{{card.grade}} >= 50">
                     <span style="color:green;">{{card.grade}} - PASS</span>
                   </dcg>

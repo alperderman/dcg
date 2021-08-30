@@ -1,5 +1,5 @@
 /*!
-* Dynamic Content Generation (1.0.5) 2021/08/28
+* Dynamic Content Generation (1.0.6) 2021/08/30
 */
 
 //polyfills
@@ -35,6 +35,8 @@ dcg.default = { //default presets
     labelEscapePrefix: "dcg:", //escape prefix: escape prefix is used for bypassing invalid html errors by escaping tags and attributes
     tokenOpen: "{{", //opening delimiter for tokens
     tokenClose: "}}", //closing delimiter for tokens
+    evalOpen: "!%", //opening delimiter for eval expressions
+    evalClose: "%!", //closing delimiter for eval expressions
     tokenKeyword: {kwThis:"_this", kwKey:"_key", kwIndex:"_index", kwLen:"_length"}, //keywords to be used inside the tokens
     showLogs: false,
     removeCss: false //for removing the styles of the content page, if set to true styles will not be carried over rendered page
@@ -49,6 +51,7 @@ dcg.regexStyles = new RegExp("<style[^>]*>([\\s\\S]*?)<\\/style>", "gim"); //reg
 dcg.regexScripts = new RegExp("<script[^>]*>([\\s\\S]*?)<\\/script>", "gim"); //regex for script tags
 //dynamic regex statements that depends on other variables and has to be reconstructed after every time variables are changed
 dcg.regexTokenDelimiter = new RegExp(dcg.default.tokenOpen+"[\\s\\S]*?"+dcg.default.tokenClose, "g"); //regex for tokens
+dcg.regexEvalDelimiter = new RegExp(dcg.default.evalOpen+"[\\s\\S]*?"+dcg.default.evalClose, "g"); //regex for eval expressions
 dcg.regexEscape = new RegExp("(<[^>]*?"+dcg.default.labelEscapePrefix+"[^>]*?>)", "gim"); //regex for escaped elements
 //time variables for calculating elapsed time
 dcg.watchTimeStart = 0;
@@ -74,6 +77,7 @@ dcg.reset = function () { //function for resetting the presets to their default
 };
 dcg.reconstructProfile = function () { //function for reconstructing the presets
     dcg.regexTokenDelimiter = new RegExp(dcg.profile.tokenOpen+"[\\s\\S]*?"+dcg.profile.tokenClose, "g");
+    dcg.regexEvalDelimiter = new RegExp(dcg.profile.evalOpen+"[\\s\\S]*?"+dcg.profile.evalClose, "g");
     dcg.regexEscape = new RegExp("(<[^>]*?"+dcg.profile.labelEscapePrefix+"[^>]*?>)", "gim");
 };
 dcg.watchStart = function () { //function for starting the time
@@ -424,10 +428,12 @@ dcg.displayTokens = function (arg) { //display tokens function, inputs are: arg.
     if (!arg.hasOwnProperty("data")) {arg.data = dcg.dataDynamic;} //default data is dcg.dataDynamic
     if (!arg.hasOwnProperty("obj")) {arg.obj = document.body;} //default element is document.body
     if (!arg.hasOwnProperty("root")) {arg.root = false;} //token root
+    arg.data = dcg.normalizeObject(arg.data); //normalize the object
     arg.obj = arg.obj.cloneNode(true); //clone the element
     //initiate the functions
     replace_token();
     replace_repeat();
+    replace_eval();
     replace_if();
     function replace_token() { //replace all superficial tokens
         var i, tokens, token, tokenPure, tokenPureSplit, tokenData, tokenRoot;
@@ -451,7 +457,7 @@ dcg.displayTokens = function (arg) { //display tokens function, inputs are: arg.
         }
     }
     function replace_repeat() { //iterate the elements that has dcg-repeat attribute and replace tokens inside them
-        var i, ii, arr, objRepeat, objRepeatClone, objRepeatCloneHtml, repeatAttr, repeatAttrSplit, repeatAttrSplitDot, tokenDataArray, tokenDataArrayCount, tokens, token, tokenPure, tokenPureSplit, tokenData, tokenRoot, aliasRegex, aliasRegexMatches, aliasRegexMatch, aliasMatch, aliasReplace;
+        var key, i, ii, arr, objRepeat, objRepeatClone, objRepeatCloneHtml, repeatAttr, repeatAttrSplit, repeatAttrSplitDot, tokenDataArray, tokens, token, tokenPure, tokenPureSplit, tokenData, tokenRoot, aliasRegex, aliasRegexMatches, aliasRegexMatch, aliasMatch, aliasReplace;
         objRepeat = dcg.getElementByAttribute(arg.obj, dcg.profile.labelRepeat); //get the first element that has dcg-repeat attribute
         objRepeatCloneHtml = "";
         if (objRepeat !== false) { //if there is element with repeat attribute, continue
@@ -460,12 +466,8 @@ dcg.displayTokens = function (arg) { //display tokens function, inputs are: arg.
             repeatAttrSplitDot = repeatAttrSplit[0].split("."); //split the dcg-repeat attribute with spaces and dots
             if (typeof dcg.getRecursiveValue({arr: arg.data, keys: repeatAttrSplitDot[0], i: 0, thisRoot: arg.root}) === 'object') {
                 tokenDataArray = dcg.getRecursiveValue({arr: arg.data, keys: repeatAttrSplitDot, i: 0, thisRoot: arg.root}); //get the object or array from the data using splitted variable
-                if (!tokenDataArray.length) { //if it is an object get the keys.length, if it is an array get the length
-                    tokenDataArrayCount = Object.keys(tokenDataArray).length;
-                } else {
-                    tokenDataArrayCount = tokenDataArray.length;
-                }
-                for (i = 0;i < tokenDataArrayCount;i++) {
+                i = 0;
+                for (var key in tokenDataArray) {
                     objRepeatClone = objRepeat.cloneNode(true); //clone the element that it will be repeated
                     aliasRegex = new RegExp("(?:<)[^>]*((?:"+dcg.profile.labelRepeat+")(?:=)(?:\"|')(?:"+repeatAttrSplit[2]+"\\.)([^>]*?)(?:\"|'))[^>]*(?:>)", "gim");
                     aliasRegexMatches = [];
@@ -478,7 +480,7 @@ dcg.displayTokens = function (arg) { //display tokens function, inputs are: arg.
                     }
                     for (ii = 0;ii < aliasRegexMatches.length;ii++) { //iterate through the all of the matches and replace them with literal definition using regex
                         aliasMatch = aliasRegexMatches[ii];
-                        aliasReplace = dcg.profile.labelRepeat+"='"+repeatAttrSplit[0]+"."+i+"."+aliasMatch[1]+"'";
+                        aliasReplace = dcg.profile.labelRepeat+"='"+repeatAttrSplit[0]+"."+key+"."+aliasMatch[1]+"'";
                         objRepeatClone.innerHTML = dcg.replaceAll(objRepeatClone.innerHTML, aliasMatch[0], aliasReplace, 'g');
                     }
                     tokens = dcg.removeDuplicatesFromArray(objRepeatClone.innerHTML.match(dcg.regexTokenDelimiter)); //get all tokens inside the repeated element
@@ -488,9 +490,9 @@ dcg.displayTokens = function (arg) { //display tokens function, inputs are: arg.
                         tokenPureSplit = tokenPure.split(".");
                         if (tokenPureSplit[0] == repeatAttrSplit[2]) { //check if the alias defined inside the token is same as the alias on the dcg-repeat attribute
                             tokenPureSplit.shift(); //remove the alias since we only need the literal definitions
-                            tokenData = dcg.getRecursiveValue({arr: tokenDataArray[i], keys: tokenPureSplit, i: 0, thisKey: i, thisRoot: arg.root}); //split the token using dots and recursively get the value from the data
+                            tokenData = dcg.getRecursiveValue({arr: tokenDataArray[key], keys: tokenPureSplit, i: 0, thisKey: key, thisIndex: i, thisRoot: arg.root}); //split the token using dots and recursively get the value from the data
                             if (dcg.isElement(tokenData)) { //if the value is an html element then run the displayTokens function inside it and set the root relatively
-                                tokenRoot = repeatAttrSplit[0]+"."+i;
+                                tokenRoot = repeatAttrSplit[0]+"."+key;
                                 objRepeatClone.innerHTML = dcg.replaceAll(objRepeatClone.innerHTML, token, dcg.displayTokens({obj: tokenData.cloneNode(true), root: tokenRoot}).innerHTML, 'g');
                             } else if (typeof tokenData !== 'object') { //if the value is not an object, replace the token using regex
                                 objRepeatClone.innerHTML = dcg.replaceAll(objRepeatClone.innerHTML, token, tokenData, 'g');
@@ -500,6 +502,7 @@ dcg.displayTokens = function (arg) { //display tokens function, inputs are: arg.
                         }
                     }
                     objRepeatCloneHtml += objRepeatClone.innerHTML; //expand the variable with the clone element that we have processed this will be done every loop and we will insert it after the iteration
+                    i++;
                 }
             }
             if (objRepeatCloneHtml != "") { //if the cloned elements are processed then insert the cloned element and remove the original element
@@ -509,13 +512,25 @@ dcg.displayTokens = function (arg) { //display tokens function, inputs are: arg.
             replace_repeat(); //restart the function
         }
     }
+    function replace_eval() { //replace all eval expressions with their corresponding data
+        var i, evalExps, evalExp, evalExpPure, evalExpData;
+        evalExps = dcg.removeDuplicatesFromArray(arg.obj.innerHTML.match(dcg.regexEvalDelimiter)); //get all eval expressions from the element and remove duplicated evals
+        for (i = 0;i < evalExps.length;i++) { //iterate through eval
+            evalExp = evalExps[i];
+            evalExpPure = evalExp.substring(dcg.profile.evalOpen.length, evalExp.length-dcg.profile.evalClose.length); //remove the eval expression delimiters
+            if (evalExpPure != "") { //evaluate the input and replace it
+                evalExpData = window.eval(evalExpPure);
+                arg.obj.innerHTML = dcg.replaceAll(arg.obj.innerHTML, evalExp, evalExpData, 'g');
+            }
+        }
+    }
     function replace_if() { //recursive conditional rendering
         var objIf, ifAttr;
         objIf = dcg.getElementByAttribute(arg.obj, dcg.profile.labelIf); //get the first element that has dcg-if attribute
         if (objIf !== false) { //if there is element with dcg-if attribute, continue
             ifAttr = objIf.getAttribute(dcg.profile.labelIf);
             if (ifAttr && ifAttr != "") {
-                if (eval(ifAttr)) { //evaluate the attribute, if it returns true then render the element
+                if (window.eval(ifAttr)) { //evaluate the attribute, if it returns true then render the element
                     objIf.insertAdjacentHTML("afterend", objIf.innerHTML);
                 }
             }
@@ -619,8 +634,8 @@ dcg.getRecursiveValue = function (arg) { //getting a value from a multi-dimensio
             val = dcg.getRecursiveValue({arr: arg.arr, keys: arg.keys, i: arg.i, thisKey: arg.thisKey});
         } else if (key == dcg.profile.tokenKeyword.kwKey && arg.thisKey != null) {
             val = arg.thisKey;
-        } else if (key == dcg.profile.tokenKeyword.kwIndex && arg.thisKey != null && (/^-?\d+$/).test(arg.thisKey)) {
-            val = parseInt(arg.thisKey, 10)+1;
+        } else if (key == dcg.profile.tokenKeyword.kwIndex && arg.thisIndex != null) {
+            val = parseInt(arg.thisIndex, 10);
         } else if (key == dcg.profile.tokenKeyword.kwLen) {
             val = arrLen;
         } else {
@@ -716,7 +731,6 @@ dcg.loadTemplate = function (arg) { //load template function, inputs are: arg.id
         }
     }
     if (arg.data) { //if data is defined then display the tokens
-        arg.data = dcg.normalizeObject(arg.data);
         objClone = dcg.displayTokens({data: arg.data, obj: objClone});
     }
     if(dcg.renderReady){ //if render is done, escape elements
