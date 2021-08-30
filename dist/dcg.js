@@ -275,7 +275,7 @@ dcg.renderDesign = function (arg) { //the main render function, inputs are: arg.
                 } else { //if it doesn't have labels, store it as it is
                     dynamicContentParse = dynamicContent.innerHTML;
                 }
-                dynamicContentNested = dcg.convertToObject(dcg.setNestedPropertyValue({}, contentId, dynamicContentParse)); //create nested object based on labelObj and convert arrays into objects in order to nest them manually later on
+                dynamicContentNested = dcg.normalizeObject(dcg.setNestedPropertyValue({}, contentId, dynamicContentParse)); //create nested object based on labelObj and normalize arrays and objects in order to nest them manually later on
                 dcg.dataDynamic = dcg.mergeDeep(dcg.dataDynamic, dynamicContentNested); //merge content with dataDynamic
             }
         }
@@ -434,7 +434,7 @@ dcg.displayTokens = function (arg) { //display tokens function, inputs are: arg.
         tokens = dcg.removeDuplicatesFromArray(arg.obj.innerHTML.match(dcg.regexTokenDelimiter)); //get all tokens from the element and remove duplicated tokens
         for (i = 0;i < tokens.length;i++) { //iterate through tokens
             token = tokens[i];
-            tokenPure = token.substring(dcg.profile.tokenOpen.length, token.length-dcg.profile.tokenClose.length); //remove the token delimiters
+            tokenPure = token.substring(dcg.profile.tokenOpen.length, token.length-dcg.profile.tokenClose.length).toLowerCase(); //remove the token delimiters
             tokenPureSplit = tokenPure.split(".");
             if (dcg.getRecursiveValue({arr: arg.data, keys: tokenPureSplit[0], i: 0, thisRoot: arg.root}) !== false) {
                 tokenData = dcg.getRecursiveValue({arr: arg.data, keys: tokenPureSplit, i: 0, thisRoot: arg.root}); //split the token using dots and recursively get the value from the data
@@ -455,7 +455,7 @@ dcg.displayTokens = function (arg) { //display tokens function, inputs are: arg.
         objRepeat = dcg.getElementByAttribute(arg.obj, dcg.profile.labelRepeat); //get the first element that has dcg-repeat attribute
         objRepeatCloneHtml = "";
         if (objRepeat !== false) { //if there is element with repeat attribute, continue
-            repeatAttr = objRepeat.getAttribute(dcg.profile.labelRepeat);
+            repeatAttr = objRepeat.getAttribute(dcg.profile.labelRepeat).toLowerCase();
             repeatAttrSplit = repeatAttr.split(" ");
             repeatAttrSplitDot = repeatAttrSplit[0].split("."); //split the dcg-repeat attribute with spaces and dots
             if (typeof dcg.getRecursiveValue({arr: arg.data, keys: repeatAttrSplitDot[0], i: 0, thisRoot: arg.root}) === 'object') {
@@ -484,14 +484,13 @@ dcg.displayTokens = function (arg) { //display tokens function, inputs are: arg.
                     tokens = dcg.removeDuplicatesFromArray(objRepeatClone.innerHTML.match(dcg.regexTokenDelimiter)); //get all tokens inside the repeated element
                     for (ii = 0;ii < tokens.length;ii++) {
                         token = tokens[ii];
-                        tokenPure = token.substring(dcg.profile.tokenOpen.length, token.length-dcg.profile.tokenClose.length); //remove the token delimiters
+                        tokenPure = token.substring(dcg.profile.tokenOpen.length, token.length-dcg.profile.tokenClose.length).toLowerCase(); //remove the token delimiters
                         tokenPureSplit = tokenPure.split(".");
                         if (tokenPureSplit[0] == repeatAttrSplit[2]) { //check if the alias defined inside the token is same as the alias on the dcg-repeat attribute
                             tokenPureSplit.shift(); //remove the alias since we only need the literal definitions
                             tokenData = dcg.getRecursiveValue({arr: tokenDataArray[i], keys: tokenPureSplit, i: 0, thisKey: i, thisRoot: arg.root}); //split the token using dots and recursively get the value from the data
                             if (dcg.isElement(tokenData)) { //if the value is an html element then run the displayTokens function inside it and set the root relatively
-                                tokenRoot = Object.values(dcg.mergeDeep(tokenPureSplit));
-                                tokenRoot.pop();
+                                tokenRoot = repeatAttrSplit[0]+"."+i;
                                 objRepeatClone.innerHTML = dcg.replaceAll(objRepeatClone.innerHTML, token, dcg.displayTokens({obj: tokenData.cloneNode(true), root: tokenRoot}).innerHTML, 'g');
                             } else if (typeof tokenData !== 'object') { //if the value is not an object, replace the token using regex
                                 objRepeatClone.innerHTML = dcg.replaceAll(objRepeatClone.innerHTML, token, tokenData, 'g');
@@ -610,11 +609,7 @@ dcg.getRecursiveValue = function (arg) { //getting a value from a multi-dimensio
     }
     if (len > 0 && arg.i < len) {
         arg.i++;
-        if (arg.arr.hasOwnProperty(key)) {
-            val = dcg.getRecursiveValue({arr: arg.arr[key], keys: arg.keys, i: arg.i});
-        } else if (arg.arr.hasOwnProperty(key.toUpperCase())) {
-            val = dcg.getRecursiveValue({arr: arg.arr[key.toUpperCase()], keys: arg.keys, i: arg.i});
-        } else if (arg.arr.hasOwnProperty(key.toLowerCase())) {
+        if (arg.arr.hasOwnProperty(key.toLowerCase())) {
             val = dcg.getRecursiveValue({arr: arg.arr[key.toLowerCase()], keys: arg.keys, i: arg.i});
         } else if (key == dcg.profile.tokenKeyword.kwThis){
             if (arg.thisRoot != null && arg.thisRoot.length > 0) {
@@ -645,7 +640,7 @@ dcg.setNestedPropertyValue = function (obj, fields, val) { //function for settin
   cur[last] = val;
   return obj;
 };
-dcg.convertToObject = function (obj) { //function for converting arrays into objects
+dcg.normalizeObject = function (obj) { //function for normalizing arrays and objects
     var result = {};
     if (Array.isArray(obj)) {
         obj = toObject(obj);
@@ -653,7 +648,7 @@ dcg.convertToObject = function (obj) { //function for converting arrays into obj
     if (typeof obj === 'object' && !dcg.isElement(obj)) {
         for (var property in obj) {
             if (obj.hasOwnProperty(property)) {
-                result[property] = dcg.convertToObject(obj[property]);
+                result[property.toLowerCase()] = dcg.normalizeObject(obj[property]);
             }
         }
     } else {
@@ -721,6 +716,7 @@ dcg.loadTemplate = function (arg) { //load template function, inputs are: arg.id
         }
     }
     if (arg.data) { //if data is defined then display the tokens
+        arg.data = dcg.normalizeObject(arg.data);
         objClone = dcg.displayTokens({data: arg.data, obj: objClone});
     }
     if(dcg.renderReady){ //if render is done, escape elements
