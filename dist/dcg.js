@@ -381,7 +381,7 @@ dcg.renderDesign = function (arg) { //the main render function, inputs are: arg.
         if (dcg.renderDom) {
             dcg.loadScripts(arg.content.body.getElementsByTagName("script"), function () {
                 dcg.watchPrintSplit("Scripts, injected!");
-                if (window.location.hash.slice(1)) {
+                if (window.location.hash.slice(1) && arg.content.getElementById(window.location.hash.slice(1))) {
                     arg.content.getElementById(window.location.hash.slice(1)).scrollIntoView();
                 }
                 dcg.DOMLoad();
@@ -428,14 +428,13 @@ dcg.displayTokens = function (arg) { //display tokens function, inputs are: arg.
     if (!arg.hasOwnProperty("data")) {arg.data = dcg.dataDynamic;} //default data is dcg.dataDynamic
     if (!arg.hasOwnProperty("obj")) {arg.obj = document.body;} //default element is document.body
     if (!arg.hasOwnProperty("root")) {arg.root = false;} //token root
-    arg.data = dcg.normalizeObject(arg.data); //normalize the object
-    arg.obj = arg.obj.cloneNode(true); //clone the element
-    //initiate the functions
-    replace_token();
-    replace_repeat();
-    replace_eval();
-    replace_if();
-    function replace_token() { //replace all superficial tokens
+    step_start();
+    function step_start() {
+        arg.data = dcg.normalizeObject(arg.data); //normalize the object
+        arg.obj = arg.obj.cloneNode(true); //clone the element
+        step_token();
+    }
+    function step_token() { //replace all superficial tokens
         var i, tokens, token, tokenPure, tokenPureSplit, tokenData, tokenRoot;
         tokens = dcg.removeDuplicatesFromArray(arg.obj.innerHTML.match(dcg.regexTokenDelimiter)); //get all tokens from the element and remove duplicated tokens
         for (i = 0;i < tokens.length;i++) { //iterate through tokens
@@ -455,8 +454,9 @@ dcg.displayTokens = function (arg) { //display tokens function, inputs are: arg.
                 }
             }
         }
+        step_repeat();
     }
-    function replace_repeat() { //iterate the elements that has dcg-repeat attribute and replace tokens inside them
+    function step_repeat() { //iterate the elements that has dcg-repeat attribute and replace tokens inside them
         var key, i, ii, arr, objRepeat, objRepeatClone, objRepeatCloneHtml, repeatAttr, repeatAttrSplit, repeatAttrSplitDot, tokenDataArray, tokens, token, tokenPure, tokenPureSplit, tokenData, tokenRoot, aliasRegex, aliasRegexMatches, aliasRegexMatch, aliasMatch, aliasReplace;
         objRepeat = dcg.getElementByAttribute(arg.obj, dcg.profile.labelRepeat); //get the first element that has dcg-repeat attribute
         objRepeatCloneHtml = "";
@@ -509,10 +509,11 @@ dcg.displayTokens = function (arg) { //display tokens function, inputs are: arg.
                 objRepeat.insertAdjacentHTML("afterend", objRepeatCloneHtml);
                 objRepeat.parentNode.removeChild(objRepeat);
             }
-            replace_repeat(); //restart the function
+            step_repeat(); //restart the function
         }
+        step_eval();
     }
-    function replace_eval() { //replace all eval expressions with their corresponding data
+    function step_eval() { //replace all eval expressions with their corresponding data
         var i, evalExps, evalExp, evalExpPure, evalExpData;
         evalExps = dcg.removeDuplicatesFromArray(arg.obj.innerHTML.match(dcg.regexEvalDelimiter)); //get all eval expressions from the element and remove duplicated evals
         for (i = 0;i < evalExps.length;i++) { //iterate through eval
@@ -523,8 +524,9 @@ dcg.displayTokens = function (arg) { //display tokens function, inputs are: arg.
                 arg.obj.innerHTML = dcg.replaceAll(arg.obj.innerHTML, evalExp, evalExpData, 'g');
             }
         }
+        step_if();
     }
-    function replace_if() { //recursive conditional rendering
+    function step_if() { //recursive conditional rendering
         var objIf, ifAttr;
         objIf = dcg.getElementByAttribute(arg.obj, dcg.profile.labelIf); //get the first element that has dcg-if attribute
         if (objIf !== false) { //if there is element with dcg-if attribute, continue
@@ -535,7 +537,7 @@ dcg.displayTokens = function (arg) { //display tokens function, inputs are: arg.
                 }
             }
             objIf.parentNode.removeChild(objIf);
-            replace_if(); //restart the function
+            step_if(); //restart the function
         }
     }
     return arg.obj; //return the final element
