@@ -57,7 +57,7 @@
         </dcg>
 
         <!--using eval expression to sum 2 numbers-->
-        <p>Sum of {{dynamicData.sum1}} and {{dynamicData.sum2}} is !%{{dynamicData.sum1}}+{{dynamicData.sum2}}%!</p>
+        <p>Sum of {{dynamicData.sum1}} and {{dynamicData.sum2}} is {%{{dynamicData.sum1}}+{{dynamicData.sum2}}%}</p>
 
         <!--referencing an external template and defining a default json content with dcg-data that can only be used inside the template-->
         <dcg dcg-temp="temple" dcg-data='{"foo": "bar"}' dcg-tref>
@@ -90,7 +90,7 @@
                   
                   <br>
 
-                  <span>!%{{card._index}}+1%! - {{card.CustomerName}}</span>
+                  <span>{%{{card._index}}+1%} - {{card.CustomerName}}</span>
                   <dcg dcg-if="{{card.grade}} >= 50">
                     <span style="color:green;">{{card.grade}} - PASS</span>
                   </dcg>

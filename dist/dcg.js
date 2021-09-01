@@ -35,12 +35,24 @@ dcg.default = { //default presets
     labelEscapePrefix: "dcg:", //escape prefix: escape prefix is used for bypassing invalid html errors by escaping tags and attributes
     tokenOpen: "{{", //opening delimiter for tokens
     tokenClose: "}}", //closing delimiter for tokens
-    evalOpen: "!%", //opening delimiter for eval expressions
-    evalClose: "%!", //closing delimiter for eval expressions
-    tokenKeyword: {kwThis:"_this", kwKey:"_key", kwIndex:"_index", kwLen:"_length"}, //keywords to be used inside the tokens
-    showLogs: false,
+    evalOpen: "{%", //opening delimiter for eval expressions
+    evalClose: "%}", //closing delimiter for eval expressions
+    showLogs: false, //for showing the render logs
     removeCss: false //for removing the styles of the content page, if set to true styles will not be carried over rendered page
 };
+//keywords to be used inside the tokens
+dcg.root = {
+    base: ""
+};
+dcg.keywordObject = {
+    this:"_this",
+    key:"_key",
+    index:"_index",
+    len:"_length"
+};
+dcg.keywordRoot = [
+    {name: "base", value: dcg.root.base}
+];
 dcg.profile = {}; //preset profile for assigning custom presets
 dcg.dataDynamic = {}; //for storing dynamic contents, they are nestable and usable as tokens (xml and json)
 dcg.dataStatic = {}; //for storing static contents (raw html and template references)
@@ -69,16 +81,19 @@ dcg.config = function (options) { //function for setting custom presets
     } else {
         return;
     }
-    dcg.reconstructProfile();
+    dcg.reconstruct();
 };
 dcg.reset = function () { //function for resetting the presets to their default
     dcg.profile = dcg.mergeDeep(dcg.default);
-    dcg.reconstructProfile();
+    dcg.reconstruct();
 };
-dcg.reconstructProfile = function () { //function for reconstructing the presets
+dcg.reconstruct = function () { //function for reconstructing the presets
     dcg.regexTokenDelimiter = new RegExp(dcg.profile.tokenOpen+"[\\s\\S]*?"+dcg.profile.tokenClose, "g");
     dcg.regexEvalDelimiter = new RegExp(dcg.profile.evalOpen+"[\\s\\S]*?"+dcg.profile.evalClose, "g");
     dcg.regexEscape = new RegExp("(<[^>]*?"+dcg.profile.labelEscapePrefix+"[^>]*?>)", "gim");
+    dcg.keywordRoot = [
+        {name: "base", value: dcg.root.base}
+    ];
 };
 dcg.watchStart = function () { //function for starting the time
     dcg.watchTimeStart = dcg.watchGetCurrent();
@@ -174,6 +189,7 @@ dcg.render = function (arg) { //wrapper for renderDesign function, inputs are: a
         } else { //if base is not defined, check the base attribute
             base = content.body.getAttribute(dcg.profile.labelBase);
         }
+        dcg.root.base = base;
         step_design(content, base);
     }
     function step_design(content, base) { //get the design
@@ -368,11 +384,12 @@ dcg.renderDesign = function (arg) { //the main render function, inputs are: arg.
         dcg.watchPrintSplit("Dynamic contents, inserted!");
         step_escape();
     }
-    function step_escape() { //escape the elements and remove the remnants
+    function step_escape() { //escape the elements, remove the remnants and replace root tokens
         arg.content.body.innerHTML = dcg.replaceEscape(arg.content.body.innerHTML);
         arg.content.documentElement.innerHTML = dcg.removeMarked(arg.content.documentElement);
         arg.content.body.removeAttribute(dcg.profile.labelDesign);
         arg.content.body.removeAttribute(dcg.profile.labelBase);
+        arg.content.body.innerHTML = dcg.replaceRoot(arg.content.body.innerHTML);
         dcg.renderReady = true;
         dcg.watchPrintSplit("Elements, escaped and remnants, removed!");
         step_inject();
@@ -420,6 +437,7 @@ dcg.renderDesign = function (arg) { //the main render function, inputs are: arg.
                 newHtml = dcg.replaceAll(newHtml, url, newUrl, 'gim');
             }
         }
+        newHtml = dcg.replaceRoot(newHtml, "base");
         return newHtml;
     }
 };
@@ -519,7 +537,7 @@ dcg.displayTokens = function (arg) { //display tokens function, inputs are: arg.
         for (i = 0;i < evalExps.length;i++) { //iterate through eval
             evalExp = evalExps[i];
             evalExpPure = evalExp.substring(dcg.profile.evalOpen.length, evalExp.length-dcg.profile.evalClose.length); //remove the eval expression delimiters
-            if (evalExpPure != "") { //evaluate the input and replace it
+            if (dcg.isValidJs(evalExpPure) && evalExpPure.trim() != "") { //if input is valid then evaluate the input and replace it
                 evalExpData = window.eval(evalExpPure);
                 arg.obj.innerHTML = dcg.replaceAll(arg.obj.innerHTML, evalExp, evalExpData, 'g');
             }
@@ -531,7 +549,7 @@ dcg.displayTokens = function (arg) { //display tokens function, inputs are: arg.
         objIf = dcg.getElementByAttribute(arg.obj, dcg.profile.labelIf); //get the first element that has dcg-if attribute
         if (objIf !== false) { //if there is element with dcg-if attribute, continue
             ifAttr = objIf.getAttribute(dcg.profile.labelIf);
-            if (ifAttr && ifAttr != "") {
+            if (dcg.isValidJs(ifAttr) && ifAttr.trim() != "") {
                 if (window.eval(ifAttr)) { //evaluate the attribute, if it returns true then render the element
                     objIf.insertAdjacentHTML("afterend", objIf.innerHTML);
                 }
@@ -556,6 +574,22 @@ dcg.replaceEscape = function (html) { //escape elements function
     }
     return newHtml;
 };
+dcg.replaceRoot = function (html, name) {
+    var i, newHtml = html, root;
+    dcg.reconstruct();
+    if (html == null) {return;}
+    for (i = 0;i < dcg.keywordRoot.length;i++) {
+        root = dcg.keywordRoot[i];
+        if (name != null && name != "") {
+            if (root.name == name) {
+                newHtml = dcg.replaceAll(newHtml, dcg.profile.tokenOpen+root.name+dcg.profile.tokenClose, root.value, 'gim');
+            }
+        } else {
+            newHtml = dcg.replaceAll(newHtml, dcg.profile.tokenOpen+root.name+dcg.profile.tokenClose, root.value, 'gim');
+        }
+    }
+    return newHtml;
+};
 dcg.removeMarked = function (node) { //remove elements that has labelRemove attribute function
     if (node == null) {node = document.documentElement}
     var newHtml = node.cloneNode(true), marked, i;
@@ -566,6 +600,16 @@ dcg.removeMarked = function (node) { //remove elements that has labelRemove attr
         }
     }
     return newHtml.innerHTML;
+};
+dcg.isValidJs = function (code) { //try eval function
+    var result = true;
+    try {
+        eval(code);
+    }
+    catch(e) {
+        result = false;
+    }
+    return result;
 };
 dcg.isElement = function (el) { //check if html element function
     return el instanceof Element || el instanceof HTMLDocument;  
@@ -628,17 +672,17 @@ dcg.getRecursiveValue = function (arg) { //getting a value from a multi-dimensio
         arg.i++;
         if (arg.arr.hasOwnProperty(key.toLowerCase())) {
             val = dcg.getRecursiveValue({arr: arg.arr[key.toLowerCase()], keys: arg.keys, i: arg.i});
-        } else if (key == dcg.profile.tokenKeyword.kwThis){
+        } else if (key == dcg.keywordObject.this){
             if (arg.thisRoot != null && arg.thisRoot.length > 0) {
                 arg.thisKey = arg.thisRoot[arg.i];
                 arg.arr = dcg.getRecursiveValue({arr: arg.arr, keys: arg.thisRoot, i: 0});
             }
             val = dcg.getRecursiveValue({arr: arg.arr, keys: arg.keys, i: arg.i, thisKey: arg.thisKey});
-        } else if (key == dcg.profile.tokenKeyword.kwKey && arg.thisKey != null) {
+        } else if (key == dcg.keywordObject.key && arg.thisKey != null) {
             val = arg.thisKey;
-        } else if (key == dcg.profile.tokenKeyword.kwIndex && arg.thisIndex != null) {
+        } else if (key == dcg.keywordObject.index && arg.thisIndex != null) {
             val = parseInt(arg.thisIndex, 10);
-        } else if (key == dcg.profile.tokenKeyword.kwLen) {
+        } else if (key == dcg.keywordObject.len) {
             val = arrLen;
         } else {
             val = false;
