@@ -943,6 +943,9 @@ pre {
  cursor:pointer;
  border-radius:0.5rem
 }
+a.btn:hover, a.btn-sm:hover, a.btn-lg:hover {
+ text-decoration: none
+}
 .btn-sm {
  padding:0.5rem 1rem;
  font-size:0.75rem
