@@ -6,18 +6,23 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1, user-scalable=no, minimal-ui" />
 </head>
 <body dcg-design="design.html" dcg-base="./">
+
+  <div dcg-obj="header" dcg-json>
+    {
+      "title": "Dynamic Content Generation",
+      "sub": "sandbox"
+    }
+  </div>
   <div dcg-obj="content">
     &lt;div dcg-obj="foobar" dcg-json>
       {"foo": "bars"}
     &lt;/div>
   </div>
-
   <div dcg-obj="design">
     &lt;body>
       &lt;h1>{{foobar.foo}}&lt;/h1>
     &lt;/body>
   </div>
-
   <div dcg-obj="presets">
     {
       baseAttrs: ["src", "href"],

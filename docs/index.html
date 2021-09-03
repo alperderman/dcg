@@ -8,6 +8,16 @@
   </head>
   <body dcg-design="design.html" dcg-base="./">
     
+    <div dcg-obj="header" dcg-json>
+      {
+        "title": "Dynamic Content Generation",
+        "sub": "documentation",
+        "btn": {
+          "github": "https://github.com/alperderman/dcg",
+          "sandbox": "../sandbox/index.html"
+        }
+      }
+    </div>
     <div dcg-obj="content" dcg-json>
       {
         "introduction": {"title": "Introduction"},
@@ -38,7 +48,7 @@
         <h1>{{_this.title}}</h1>
         <p>In order to use DCG, just download it from <a target="_blank" href="https://raw.githubusercontent.com/alperderman/dcg/main/dist/dcg.js">here</a> and create two HTML files, one for the contents and one for the design like in the below.</p>
         <p>And run it on your local web server.</p>
-        <p>If you want to test the DCG without downloading anything, you can check out the <a href="../sandbox/index.html">Sandbox</a>.</p>
+        <p>If you want to test the DCG without downloading anything, you can check out the <a href="{{header.btn.sandbox}}">Sandbox</a>.</p>
         <div class="row lg:gutter-2 mb-6">
           <div class="column col-12 lg:col-6">
             <h3 class="mt-0">content.html (the main page)</h3>

@@ -459,16 +459,16 @@ dcg.displayTokens = function (arg) { //display tokens function, inputs are: arg.
             token = tokens[i];
             tokenPure = token.substring(dcg.profile.tokenOpen.length, token.length-dcg.profile.tokenClose.length).toLowerCase(); //remove the token delimiters
             tokenPureSplit = tokenPure.split(".");
-            if (dcg.getRecursiveValue({arr: arg.data, keys: tokenPureSplit[0], i: 0, thisRoot: arg.root}) !== false) {
-                tokenData = dcg.getRecursiveValue({arr: arg.data, keys: tokenPureSplit, i: 0, thisRoot: arg.root}); //split the token using dots and recursively get the value from the data
+            tokenData = dcg.getRecursiveValue({arr: arg.data, keys: tokenPureSplit, i: 0, thisRoot: arg.root}); //split the token using dots and recursively get the value from the data
+            if (tokenData !== false) {
                 if (dcg.isElement(tokenData)) { //if the value is an html element then run the displayTokens function inside it and set the root relatively
                     tokenRoot = Object.values(dcg.mergeDeep(tokenPureSplit));
                     tokenRoot.pop();
                     arg.obj.innerHTML = dcg.replaceAll(arg.obj.innerHTML, token, dcg.displayTokens({obj: tokenData.cloneNode(true), root: tokenRoot}).innerHTML, 'g');
-                } else if (!(typeof tokenData === 'object')) { //if the value is not an object, replace the token using regex
+                } else if (typeof tokenData === 'string') { //if the value is string, replace the token using regex
                     arg.obj.innerHTML = dcg.replaceAll(arg.obj.innerHTML, token, tokenData, 'g');
-                } else { //if the value is an object, stringify it
-                    arg.obj.innerHTML = dcg.replaceAll(arg.obj.innerHTML, token, JSON.stringify(tokenData), 'g');
+                } else if (typeof tokenData === 'object') { //if the value is an object, stringify it
+                    arg.obj.innerHTML = dcg.replaceAll(arg.obj.innerHTML, token, dcg.encodeHtml(JSON.stringify(tokenData)), 'g');
                 }
             }
         }
@@ -482,8 +482,8 @@ dcg.displayTokens = function (arg) { //display tokens function, inputs are: arg.
             repeatAttr = objRepeat.getAttribute(dcg.profile.labelRepeat).toLowerCase();
             repeatAttrSplit = repeatAttr.split(" ");
             repeatAttrSplitDot = repeatAttrSplit[0].split("."); //split the dcg-repeat attribute with spaces and dots
-            if (typeof dcg.getRecursiveValue({arr: arg.data, keys: repeatAttrSplitDot[0], i: 0, thisRoot: arg.root}) === 'object') {
-                tokenDataArray = dcg.getRecursiveValue({arr: arg.data, keys: repeatAttrSplitDot, i: 0, thisRoot: arg.root}); //get the object or array from the data using splitted variable
+            tokenDataArray = dcg.getRecursiveValue({arr: arg.data, keys: repeatAttrSplitDot, i: 0, thisRoot: arg.root}); //get the object or array from the data using splitted variable
+            if (tokenDataArray !== false) {
                 i = 0;
                 for (var key in tokenDataArray) {
                     objRepeatClone = objRepeat.cloneNode(true); //clone the element that it will be repeated
@@ -509,13 +509,15 @@ dcg.displayTokens = function (arg) { //display tokens function, inputs are: arg.
                         if (tokenPureSplit[0] == repeatAttrSplit[2]) { //check if the alias defined inside the token is same as the alias on the dcg-repeat attribute
                             tokenPureSplit.shift(); //remove the alias since we only need the literal definitions
                             tokenData = dcg.getRecursiveValue({arr: tokenDataArray[key], keys: tokenPureSplit, i: 0, thisKey: key, thisIndex: i, thisRoot: arg.root}); //split the token using dots and recursively get the value from the data
-                            if (dcg.isElement(tokenData)) { //if the value is an html element then run the displayTokens function inside it and set the root relatively
-                                tokenRoot = repeatAttrSplit[0]+"."+key;
-                                objRepeatClone.innerHTML = dcg.replaceAll(objRepeatClone.innerHTML, token, dcg.displayTokens({obj: tokenData.cloneNode(true), root: tokenRoot}).innerHTML, 'g');
-                            } else if (typeof tokenData !== 'object') { //if the value is not an object, replace the token using regex
-                                objRepeatClone.innerHTML = dcg.replaceAll(objRepeatClone.innerHTML, token, tokenData, 'g');
-                            } else { //if the value is an object, stringify it
-                                objRepeatClone.innerHTML = dcg.replaceAll(objRepeatClone.innerHTML, token, JSON.stringify(tokenData), 'g');
+                            if (tokenData !== false) {
+                                if (dcg.isElement(tokenData)) { //if the value is an html element then run the displayTokens function inside it and set the root relatively
+                                    tokenRoot = repeatAttrSplit[0]+"."+key;
+                                    objRepeatClone.innerHTML = dcg.replaceAll(objRepeatClone.innerHTML, token, dcg.displayTokens({obj: tokenData.cloneNode(true), root: tokenRoot}).innerHTML, 'g');
+                                } else if (typeof tokenData === 'string') { //if the value is string, replace the token using regex
+                                    objRepeatClone.innerHTML = dcg.replaceAll(objRepeatClone.innerHTML, token, tokenData, 'g');
+                                } else if (typeof tokenData === 'object') { //if the value is an object, stringify it
+                                    objRepeatClone.innerHTML = dcg.replaceAll(objRepeatClone.innerHTML, token, dcg.encodeHtml(JSON.stringify(tokenData)), 'g');
+                                }
                             }
                         }
                     }
@@ -536,7 +538,7 @@ dcg.displayTokens = function (arg) { //display tokens function, inputs are: arg.
         evalExps = dcg.removeDuplicatesFromArray(arg.obj.innerHTML.match(dcg.regexEvalDelimiter)); //get all eval expressions from the element and remove duplicated evals
         for (i = 0;i < evalExps.length;i++) { //iterate through eval
             evalExp = evalExps[i];
-            evalExpPure = evalExp.substring(dcg.profile.evalOpen.length, evalExp.length-dcg.profile.evalClose.length); //remove the eval expression delimiters
+            evalExpPure = dcg.decodeHtml(evalExp.substring(dcg.profile.evalOpen.length, evalExp.length-dcg.profile.evalClose.length)); //remove the eval expression delimiters
             if (dcg.isValidJs(evalExpPure) && evalExpPure.trim() != "") { //if input is valid then evaluate the input and replace it
                 evalExpData = window.eval(evalExpPure);
                 arg.obj.innerHTML = dcg.replaceAll(arg.obj.innerHTML, evalExp, evalExpData, 'g');
@@ -548,7 +550,7 @@ dcg.displayTokens = function (arg) { //display tokens function, inputs are: arg.
         var objIf, ifAttr;
         objIf = dcg.getElementByAttribute(arg.obj, dcg.profile.labelIf); //get the first element that has dcg-if attribute
         if (objIf !== false) { //if there is element with dcg-if attribute, continue
-            ifAttr = objIf.getAttribute(dcg.profile.labelIf);
+            ifAttr = dcg.decodeHtml(objIf.getAttribute(dcg.profile.labelIf));
             if (dcg.isValidJs(ifAttr) && ifAttr.trim() != "") {
                 if (window.eval(ifAttr)) { //evaluate the attribute, if it returns true then render the element
                     objIf.insertAdjacentHTML("afterend", objIf.innerHTML);
@@ -559,6 +561,18 @@ dcg.displayTokens = function (arg) { //display tokens function, inputs are: arg.
         }
     }
     return arg.obj; //return the final element
+};
+dcg.encodeHtml = function (str) { //encode html entities function
+    var i, buf = [];
+    for (var i=str.length-1;i>=0;i--) {
+        buf.unshift(['&#', str[i].charCodeAt(), ';'].join(''));
+    }
+    return buf.join('');
+};
+dcg.decodeHtml = function (str) { //decode html entities function
+    return str.replace(/&#(\d+);/g, function(match, dec) {
+        return String.fromCharCode(dec);
+    });
 };
 dcg.replaceEscape = function (html) { //escape elements function
     if (html == null) {html = document.body.cloneNode(true).innerHTML;}
@@ -662,8 +676,8 @@ dcg.getRecursiveValue = function (arg) { //getting a value from a multi-dimensio
     if (typeof arg.thisRoot === 'string') {arg.thisRoot = arg.thisRoot.split('.');}
     if (arg.i == null) {arg.i = 0;}
     if (arg.thisKey == null && arg.i > 0) {arg.thisKey = arg.keys[arg.i-1];}
-    var key = arg.keys[arg.i], len = arg.keys.length, val = arg.arr, arrLen;
-    if (!arg.arr.length) {
+    var key = arg.keys[arg.i], len = arg.keys.length, val = arg.arr, arrLen, success = true;
+    if (arg.arr.length == null) {
         arrLen = Object.keys(arg.arr).length;
     } else {
         arrLen = arg.arr.length;
@@ -672,12 +686,18 @@ dcg.getRecursiveValue = function (arg) { //getting a value from a multi-dimensio
         arg.i++;
         if (arg.arr.hasOwnProperty(key.toLowerCase())) {
             val = dcg.getRecursiveValue({arr: arg.arr[key.toLowerCase()], keys: arg.keys, i: arg.i});
+            if (val === false) {
+                success = false;
+            }
         } else if (key == dcg.keywordObject.this){
             if (arg.thisRoot != null && arg.thisRoot.length > 0) {
                 arg.thisKey = arg.thisRoot[arg.i];
                 arg.arr = dcg.getRecursiveValue({arr: arg.arr, keys: arg.thisRoot, i: 0});
             }
             val = dcg.getRecursiveValue({arr: arg.arr, keys: arg.keys, i: arg.i, thisKey: arg.thisKey});
+            if (val === false) {
+                success = false;
+            }
         } else if (key == dcg.keywordObject.key && arg.thisKey != null) {
             val = arg.thisKey;
         } else if (key == dcg.keywordObject.index && arg.thisIndex != null) {
@@ -685,8 +705,12 @@ dcg.getRecursiveValue = function (arg) { //getting a value from a multi-dimensio
         } else if (key == dcg.keywordObject.len) {
             val = arrLen;
         } else {
+            success = false;
             val = false;
         }
+    }
+    if (success && typeof val !== 'object') {
+        val = String(val);
     }
     return val;
 };
@@ -757,9 +781,8 @@ dcg.loadTemplate = function (arg) { //load template function, inputs are: arg.id
         attrData = arg.obj.getAttribute(dcg.profile.labelTemplateData);
         if (attrData) {
             attrDataSplit = attrData.split(".");
-            if (dcg.getRecursiveValue({arr: dcg.dataDynamic, keys: attrDataSplit[0], i: 0}) !== false) { //check if there is an object defined on the json content
-                arg.data = dcg.getRecursiveValue({arr: dcg.dataDynamic, keys: attrDataSplit, i: 0}); //split the label using dots and recursively get the value from the data
-            } else {
+            arg.data = dcg.getRecursiveValue({arr: dcg.dataDynamic, keys: attrDataSplit, i: 0}); //recursively get the value from the data
+            if (arg.data === false) { //check if there is an object defined on the json content
                 arg.data = JSON.parse(attrData); //if there isn't, parse the label data
             }
         }
@@ -770,9 +793,8 @@ dcg.loadTemplate = function (arg) { //load template function, inputs are: arg.id
     attrData = objClone.getAttribute(dcg.profile.labelTemplateData); //get the referenced template's data attribute
     if ((!arg.data || !arg.hasOwnProperty("data")) && attrData) { //if data is not defined previously check if its defined on the referenced template
         attrDataSplit = attrData.split(".");
-        if (dcg.getRecursiveValue({arr: dcg.dataDynamic, keys: attrDataSplit[0], i: 0}) !== false) { //check if there is an object defined on the json content
-            arg.data = dcg.getRecursiveValue({arr: dcg.dataDynamic, keys: attrDataSplit, i: 0}); //split the label using dots and recursively get the value from the data
-        } else {
+        arg.data = dcg.getRecursiveValue({arr: dcg.dataDynamic, keys: attrDataSplit, i: 0}); //recursively get the value from the data
+        if (arg.data === false) { //check if there is an object defined on the json content
             arg.data = JSON.parse(attrData); //if there isn't parse the label data
         }
     }

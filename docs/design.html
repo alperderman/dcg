@@ -10,10 +10,12 @@
   </head>
   <body class="bg-gray-light">
     <div class="col-12 p-6 bg-gray-dark text-white text-center md:text-left">
-      <h1>Dynamic Content Generation</h1>
-      <h3 class="text-gray-light">DOCUMENTATION</h3>
+      <h1>{{header.title}}</h1>
+      <h3 class="text-gray-light text-uppercase">{{header.sub}}</h3>
       <br>
-      <a href="https://github.com/alperderman/dcg" class="btn fw-bold mr-1">GITHUB</a><a href="../sandbox/index.html" class="btn fw-bold">SANDBOX</a>
+      <dcg dcg-repeat="header.btn as button">
+        <a href="{{button}}" class="btn fw-bold m-1 text-uppercase">{{button._key}}</a>
+      </dcg>
     </div>
     <div class="row gutter-3">
       <div class="column col-12 lg:hide xl:hide">
