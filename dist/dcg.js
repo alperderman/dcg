@@ -14,7 +14,7 @@ if (!Object.values) { Object.values = function values(obj) { var res = []; for (
 var dcg = {}; //main object
 dcg.logPrefix = "[DCG] "; //log prefix
 dcg.default = { //default presets
-    baseAttrs: ["src", "href"], //array of attributes (including labelSource) that will be replaced with base path
+    baseAttrs: ["src", "href"], //array of attributes that will be replaced with base path
     cacheRender: false, //for caching render change it to true if its going to be used in production
     labelDesign: "dcg-design", //design attribute: for locating the design page
     labelBase: "dcg-base", //base attribute: for setting base path for dependencies on the design page
@@ -53,18 +53,17 @@ dcg.keywordObject = {
 dcg.keywordRoot = [
     {name: "base", value: dcg.root.base}
 ];
-dcg.profile = {}; //preset profile for assigning custom presets
-dcg.dataDynamic = {}; //for storing dynamic contents, they are nestable and usable as tokens (xml and json)
-dcg.dataStatic = {}; //for storing static contents (raw html and template references)
-//static regex statements
+dcg.baseDependencyAttrs = [{elem: "link", attr: "href"}, {elem: "script", attr: "src"}, dcg.default.labelSource]; //the main dependency tags and attributes on the design that will be replace with base path
+dcg.regexTokenDelimiter = new RegExp(dcg.default.tokenOpen+"[\\s\\S]*?"+dcg.default.tokenClose, "g"); //regex for tokens
+dcg.regexEvalDelimiter = new RegExp(dcg.default.evalOpen+"[\\s\\S]*?"+dcg.default.evalClose, "g"); //regex for eval expressions
+dcg.regexEscape = new RegExp("(<[^>]*?"+dcg.default.labelEscapePrefix+"[^>]*?>)", "gim"); //regex for escaped elements
 dcg.regexBody = new RegExp("<body[^>]*>((.|[\\n\\r])*)<\\/body>", "im"); //regex for matching body tag
 dcg.regexLinks = new RegExp("<link[^>]*>", "gim"); //regex for matching link tags
 dcg.regexStyles = new RegExp("<style[^>]*>([\\s\\S]*?)<\\/style>", "gim"); //regex for style tags
 dcg.regexScripts = new RegExp("<script[^>]*>([\\s\\S]*?)<\\/script>", "gim"); //regex for script tags
-//dynamic regex statements that depends on other variables and has to be reconstructed after every time variables are changed
-dcg.regexTokenDelimiter = new RegExp(dcg.default.tokenOpen+"[\\s\\S]*?"+dcg.default.tokenClose, "g"); //regex for tokens
-dcg.regexEvalDelimiter = new RegExp(dcg.default.evalOpen+"[\\s\\S]*?"+dcg.default.evalClose, "g"); //regex for eval expressions
-dcg.regexEscape = new RegExp("(<[^>]*?"+dcg.default.labelEscapePrefix+"[^>]*?>)", "gim"); //regex for escaped elements
+dcg.profile = {}; //preset profile for assigning custom presets
+dcg.dataDynamic = {}; //for storing dynamic contents, they are nestable and usable as tokens (xml and json)
+dcg.dataStatic = {}; //for storing static contents (raw html and template references)
 //time variables for calculating elapsed time
 dcg.watchTimeStart = 0;
 dcg.watchTimeStop = 0;
@@ -91,6 +90,7 @@ dcg.reconstruct = function () { //function for reconstructing the presets
     dcg.regexTokenDelimiter = new RegExp(dcg.profile.tokenOpen+"[\\s\\S]*?"+dcg.profile.tokenClose, "g");
     dcg.regexEvalDelimiter = new RegExp(dcg.profile.evalOpen+"[\\s\\S]*?"+dcg.profile.evalClose, "g");
     dcg.regexEscape = new RegExp("(<[^>]*?"+dcg.profile.labelEscapePrefix+"[^>]*?>)", "gim");
+    dcg.baseDependencyAttrs = [{elem: "link", attr: "href"}, {elem: "script", attr: "src"}, dcg.profile.labelSource];
     dcg.keywordRoot = [
         {name: "base", value: dcg.root.base}
     ];
@@ -304,13 +304,14 @@ dcg.renderDesign = function (arg) { //the main render function, inputs are: arg.
     }
     function step_dependency() { //replace paths on the design with the base path and add the dependencies
         var i, fixedDesign, designLinks, designStyles, designScripts;
-        fixedDesign = fix_path(arg.design, arg.base);
+        fixedDesign = fix_path({pairs: dcg.baseDependencyAttrs, html: arg.design, base: arg.base});
         if ((/\<\/body\>/).test(fixedDesign)) { //if design has body then insert only the body with its attributes
             arg.content.documentElement.innerHTML = arg.content.documentElement.innerHTML.replace("<body", "<body"+fixedDesign.match("<body" + "(.*)" + ">")[1]);
             arg.content.body.innerHTML = fixedDesign.match(dcg.regexBody)[1];
         } else { //if it doesn't then insert it directly
             arg.content.body.innerHTML = fixedDesign;
         }
+        arg.content.body.innerHTML = dcg.replaceRoot(arg.content.body.innerHTML, "base"); //replace base token keyword
         //get link elements from design and insert them
         designLinks = fixedDesign.match(dcg.regexLinks);
         if (designLinks) {
@@ -385,6 +386,7 @@ dcg.renderDesign = function (arg) { //the main render function, inputs are: arg.
         step_escape();
     }
     function step_escape() { //escape the elements, remove the remnants and replace root tokens
+        arg.content.body.innerHTML = fix_path({pairs: dcg.profile.baseAttrs, html: arg.content.body.innerHTML, base: arg.base});
         arg.content.body.innerHTML = dcg.replaceRoot(arg.content.body.innerHTML);
         arg.content.documentElement.innerHTML = dcg.removeMarked(arg.content.documentElement);
         arg.content.body.innerHTML = dcg.replaceEscape(arg.content.body.innerHTML);
@@ -418,27 +420,44 @@ dcg.renderDesign = function (arg) { //the main render function, inputs are: arg.
         dcg.watchStop();
         dcg.watchPrint("Render finished! Total time:", true);
     }
-    function fix_path(html, base) { //replace paths with base path
-        var i, newHtml = html, newUrl, match, matches = [], url, attr, attrs = "", regex;
-        for (i = 0;i < dcg.profile.baseAttrs.length;i++) {
-            attr = dcg.profile.baseAttrs[i];
-            attrs = attrs+attr+"|";
-        }
-        attrs = attrs+dcg.profile.labelSource;
-        regex = new RegExp("(?:<)[^>]*(?:"+attrs+")(?:=)(?:\"|')([^>]*?)(?:\"|')[^>]*(?:>)", "gim");
-        while (match = regex.exec(newHtml)) {
-            matches.push(match[1]);
-        }
-        matches = dcg.removeDuplicatesFromArray(matches);
-        for (i = 0;i < matches.length;i++) {
-            url = matches[i];
-            if (url.search("http") == -1 && url[0] != "#") {
-                newUrl = base+url;
-                newHtml = dcg.replaceAll(newHtml, url, newUrl, 'gim');
+    function fix_path(arg) { //replace paths with base path, inputs are: arg.html, arg.pairs, arg.base
+        var i, ii, pair, attr, elems, obj = document.createElement("temp");
+        obj.innerHTML = arg.html;
+        for (i = 0; i < arg.pairs.length; i++) {
+            pair = arg.pairs[i];
+            if (typeof pair !== 'object') {
+                attr = pair;
+            } else {
+                attr = pair.attr;
+            }
+            if (pair.elem != null) {
+                if (typeof pair.elem !== 'object') {
+                    elems = obj.getElementsByTagName(pair.elem);
+                    replace_url(elems);
+                } else {
+                    for (ii = 0; ii < pair.elem.length; ii++) {
+                        elems = obj.getElementsByTagName(pair.elem[ii]);
+                        replace_url(elems);
+                    }
+                }
+            } else {
+                elems = dcg.getElementsByAttribute(obj, attr);
+                replace_url(elems);
             }
         }
-        newHtml = dcg.replaceRoot(newHtml, "base");
-        return newHtml;
+        function replace_url(elems) {
+            var i, elem, elemAttr;
+            for (i = 0; i < elems.length; i++) {
+                elem = elems[i];
+                elemAttr = elem.getAttribute(attr);
+                if (elemAttr != null && elemAttr.trim() != "") {
+                    if (elemAttr.search("://") == -1 && elemAttr[0] != "#") {
+                        elem.setAttribute(attr, arg.base+elemAttr);
+                    }
+                }
+            }
+        }
+        return obj.innerHTML;
     }
 };
 dcg.displayTokens = function (arg) { //display tokens function, inputs are: arg.data, arg.obj, arg.root
