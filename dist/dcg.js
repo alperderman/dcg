@@ -386,8 +386,8 @@ dcg.renderDesign = function (arg) { //the main render function, inputs are: arg.
     }
     function step_escape() { //escape the elements, remove the remnants and replace root tokens
         arg.content.body.innerHTML = dcg.replaceRoot(arg.content.body.innerHTML);
-        arg.content.body.innerHTML = dcg.replaceEscape(arg.content.body.innerHTML);
         arg.content.documentElement.innerHTML = dcg.removeMarked(arg.content.documentElement);
+        arg.content.body.innerHTML = dcg.replaceEscape(arg.content.body.innerHTML);
         arg.content.body.removeAttribute(dcg.profile.labelDesign);
         arg.content.body.removeAttribute(dcg.profile.labelBase);
         dcg.renderReady = true;
