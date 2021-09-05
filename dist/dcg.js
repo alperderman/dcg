@@ -51,7 +51,12 @@ dcg.keywordObject = {
     len:"_length"
 };
 dcg.keywordRoot = [
-    {name: "base", value: dcg.root.base}
+    {name: "$base", value: dcg.root.base},
+    {name: "$host", value: window.location.protocol + '//' + window.location.host + '/'},
+    {name: "$path", value: window.location.href.substring(0, window.location.href.lastIndexOf("/")+1)},
+    {name: "$file", value: window.location.pathname.split('/').pop()},
+    {name: "$query", value: window.location.search},
+    {name: "$hash", value: window.location.hash}
 ];
 dcg.baseDependencyAttrs = [{elem: "link", attr: "href"}, {elem: "script", attr: "src"}, dcg.default.labelSource]; //the main dependency tags and attributes on the design that will be replace with base path
 dcg.regexTokenDelimiter = new RegExp(dcg.default.tokenOpen+"[\\s\\S]*?"+dcg.default.tokenClose, "g"); //regex for tokens
@@ -92,7 +97,12 @@ dcg.reconstruct = function () { //function for reconstructing the presets
     dcg.regexEscape = new RegExp("(<[^>]*?"+dcg.profile.labelEscapePrefix+"[^>]*?>)", "gim");
     dcg.baseDependencyAttrs = [{elem: "link", attr: "href"}, {elem: "script", attr: "src"}, dcg.profile.labelSource];
     dcg.keywordRoot = [
-        {name: "base", value: dcg.root.base}
+        {name: "$base", value: dcg.root.base},
+        {name: "$host", value: window.location.protocol + '//' + window.location.host + '/'},
+        {name: "$path", value: window.location.href.substring(0, window.location.href.lastIndexOf("/")+1)},
+        {name: "$file", value: window.location.pathname.split('/').pop()},
+        {name: "$query", value: window.location.search},
+        {name: "$hash", value: window.location.hash}
     ];
 };
 dcg.watchStart = function () { //function for starting the time
@@ -304,14 +314,14 @@ dcg.renderDesign = function (arg) { //the main render function, inputs are: arg.
     }
     function step_dependency() { //replace paths on the design with the base path and add the dependencies
         var i, fixedDesign, designLinks, designStyles, designScripts;
-        fixedDesign = fix_path({pairs: dcg.baseDependencyAttrs, html: arg.design, base: arg.base});
+        fixedDesign = dcg.replaceRoot(arg.design); //replace root tokens
+        fixedDesign = fix_path({pairs: dcg.baseDependencyAttrs, html: fixedDesign, base: arg.base});
         if ((/\<\/body\>/).test(fixedDesign)) { //if design has body then insert only the body with its attributes
             arg.content.documentElement.innerHTML = arg.content.documentElement.innerHTML.replace("<body", "<body"+fixedDesign.match("<body" + "(.*)" + ">")[1]);
             arg.content.body.innerHTML = fixedDesign.match(dcg.regexBody)[1];
         } else { //if it doesn't then insert it directly
             arg.content.body.innerHTML = fixedDesign;
         }
-        arg.content.body.innerHTML = dcg.replaceRoot(arg.content.body.innerHTML, "base"); //replace base token keyword
         //get link elements from design and insert them
         designLinks = fixedDesign.match(dcg.regexLinks);
         if (designLinks) {
@@ -386,8 +396,8 @@ dcg.renderDesign = function (arg) { //the main render function, inputs are: arg.
         step_escape();
     }
     function step_escape() { //escape the elements, remove the remnants and replace root tokens
-        arg.content.body.innerHTML = fix_path({pairs: dcg.profile.baseAttrs, html: arg.content.body.innerHTML, base: arg.base});
         arg.content.body.innerHTML = dcg.replaceRoot(arg.content.body.innerHTML);
+        arg.content.body.innerHTML = fix_path({pairs: dcg.profile.baseAttrs, html: arg.content.body.innerHTML, base: arg.base});
         arg.content.documentElement.innerHTML = dcg.removeMarked(arg.content.documentElement);
         arg.content.body.innerHTML = dcg.replaceEscape(arg.content.body.innerHTML);
         arg.content.body.removeAttribute(dcg.profile.labelDesign);
