@@ -52,8 +52,8 @@ dcg.keywordObject = {
 };
 dcg.keywordRoot = [
     {name: "$base", value: dcg.root.base},
-    {name: "$host", value: window.location.protocol + '//' + window.location.host + '/'},
-    {name: "$path", value: window.location.href.substring(0, window.location.href.lastIndexOf("/")+1)},
+    {name: "$host", value: window.location.protocol + '//' + window.location.host},
+    {name: "$path", value: window.location.pathname.substring(0, window.location.pathname.lastIndexOf("/")+1)},
     {name: "$file", value: window.location.pathname.split('/').pop()},
     {name: "$query", value: window.location.search},
     {name: "$hash", value: window.location.hash}
@@ -98,8 +98,8 @@ dcg.reconstruct = function () { //function for reconstructing the presets
     dcg.baseDependencyAttrs = [{elem: "link", attr: "href"}, {elem: "script", attr: "src"}, dcg.profile.labelSource];
     dcg.keywordRoot = [
         {name: "$base", value: dcg.root.base},
-        {name: "$host", value: window.location.protocol + '//' + window.location.host + '/'},
-        {name: "$path", value: window.location.href.substring(0, window.location.href.lastIndexOf("/")+1)},
+        {name: "$host", value: window.location.protocol + '//' + window.location.host},
+        {name: "$path", value: window.location.pathname.substring(0, window.location.pathname.lastIndexOf("/")+1)},
         {name: "$file", value: window.location.pathname.split('/').pop()},
         {name: "$query", value: window.location.search},
         {name: "$hash", value: window.location.hash}
@@ -198,6 +198,9 @@ dcg.render = function (arg) { //wrapper for renderDesign function, inputs are: a
             base = arg.base;
         } else { //if base is not defined, check the base attribute
             base = content.body.getAttribute(dcg.profile.labelBase);
+        }
+        if (base != null && base[base.length-1] != "/") { //if base path doesn't end with slash, insert slash
+            base = base+"/";
         }
         dcg.root.base = base;
         step_design(content, base);

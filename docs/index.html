@@ -26,6 +26,7 @@
         "dynamic": {"title": "Dynamic Contents"},
         "static": {"title": "Static Contents"},
         "keywords": {"title": "Token Keywords"},
+        "roots": {"title": "Root Tokens"},
         "escape": {"title": "Escaping Elements"},
         "templates": {"title": "Templates"},
         "external": {"title": "External Contents"},
@@ -244,7 +245,7 @@
         <h1>{{_this.title}}</h1>
         <p>Token keywords are used for returning object properties of the specified token.</p>
         <table>
-          <tr><td>_this</td><td>Returns the object itself (espically useful when using with a template)</td></tr>
+          <tr><td>_this</td><td>Returns the object itself (espically useful when used inside a template)</td></tr>
           <tr><td>_key</td><td>Returns the key of the object</td></tr>
           <tr><td>_index</td><td>Returns the index of the array or object (used inside the iterations)</td></tr>
           <tr><td>_length</td><td>Returns the total length of the object, array or string</td></tr>
@@ -282,6 +283,20 @@
             </code></pre>
           </div>
         </div>
+      </section>
+    </div>
+    <div dcg-obj="content.roots.desc" dcg-html>
+      <section id="{{_this._key}}">
+        <h1>{{_this.title}}</h1>
+        <p>Root tokens are special kind of tokens that for returning premade values. Root tokens have both highest priority and lowest priority among other tokens reason for that is they are rendered twice, first render occurs just before the design dependencies are inserted and second render occurs after all of the other normal tokens are rendered.</p>
+        <table>
+          <tr><td>$base</td><td>Returns the defined base path</td></tr>
+          <tr><td>$host</td><td>Returns the host name with protocol: <b>"http://example.com"</b></td></tr>
+          <tr><td>$path</td><td>Returns the full directory path of the current file: <b>"/folder/pics/"</b></td></tr>
+          <tr><td>$file</td><td>Returns the current file name with extension: <b>"index.html"</b></td></tr>
+          <tr><td>$query</td><td>Returns the query string: <b>"?page=12&top=all"</b></td></tr>
+          <tr><td>$hash</td><td>Returns the hash: <b>"#id"</b></td></tr>
+        </table>
       </section>
     </div>
     <div dcg-obj="content.escape.desc" dcg-html>

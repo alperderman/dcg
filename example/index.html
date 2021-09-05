@@ -69,19 +69,23 @@
       <h3>Render Priority</h3>
       <ol>
         <li>Fetching external contents</li>
-        <li>Storing static contents (HTML, template references)</li>
-        <li>Storing dynamic contents (JSON, XML)</li>
-        <li>Inserting CSS from design</li>
+        <li>Storing static contents</li>
+        <li>Storing dynamic contents</li>
+        <li>Rendering the root tokens</li>
+        <li>Changing the dependency paths with base path</li>
+        <li>Inserting the dependencies from the design</li>
         <li>Fetching external templates</li>
         <li>Inserting stored static contents</li>
         <li>Storing referenced templates</li>
         <li>Inserting stored templates</li>
         <li>Inserting stored dynamic contents, displaying tokens</li>
-        <li>Replacing <code>eval</code> expressions</li>
+        <li>Replacing eval expressions</li>
         <li>Conditional rendering</li>
+        <li>Rendering the root tokens again</li>
+        <li>Changing the anchor and image paths with base path</li>
         <li>Replacing custom attributes</li>
         <li>Jumping to anchor</li>
-        <li>Injecting scripts inside the design and dispatching <code>onload</code> event</li>
+        <li>Injecting scripts inside the design and dispatching the <code>onload</code> event</li>
       </ol>
     </div>
 
