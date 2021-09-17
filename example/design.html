@@ -57,7 +57,15 @@
         </dcg>
 
         <!--using eval expression to sum 2 numbers-->
-        <p>Sum of {{dynamicData.sum1}} and {{dynamicData.sum2}} is {%{{dynamicData.sum1}}+{{dynamicData.sum2}}%}</p>
+        <p>Sum of {{dynamicData.sum1}} and {{dynamicData.sum2}} is {% {{dynamicData.sum1}}+{{dynamicData.sum2}} %}</p>
+
+        <!--using multi-line eval expression to substract 2 numbers (you have to define return on multi-line eval expressions)-->
+        <p>Difference of {{dynamicData.sum1}} and {{dynamicData.sum2}} is 
+          {!%
+            var result = {{dynamicData.sum1}}-{{dynamicData.sum2}};
+            return result;
+          %!}
+        </p>
 
         <!--referencing an external template and defining a default json content with dcg-data that can only be used inside the template-->
         <dcg dcg-temp="temple" dcg-data='{"foo": "bar"}' dcg-tref>

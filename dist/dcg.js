@@ -37,6 +37,8 @@ dcg.default = { //default presets
     tokenClose: "}}", //closing delimiter for tokens
     evalOpen: "{%", //opening delimiter for eval expressions
     evalClose: "%}", //closing delimiter for eval expressions
+    evalMultiOpen: "{!%", //opening delimiter for multi-line eval expressions
+    evalMultiClose: "%!}", //closing delimiter for multi-line eval expressions
     showLogs: false, //for showing the render logs
     removeCss: false //for removing the styles of the content page, if set to true styles will not be carried over rendered page
 };
@@ -61,6 +63,7 @@ dcg.keywordRoot = [
 dcg.baseDependencyAttrs = [{elem: "link", attr: "href"}, {elem: "script", attr: "src"}, dcg.default.labelSource]; //the main dependency tags and attributes on the design that will be replace with base path
 dcg.regexTokenDelimiter = new RegExp(dcg.default.tokenOpen+"[\\s\\S]*?"+dcg.default.tokenClose, "g"); //regex for tokens
 dcg.regexEvalDelimiter = new RegExp(dcg.default.evalOpen+"[\\s\\S]*?"+dcg.default.evalClose, "g"); //regex for eval expressions
+dcg.regexEvalMultiDelimiter = new RegExp(dcg.default.evalMultiOpen+"[\\s\\S]*?"+dcg.default.evalMultiClose, "g"); //regex for multi-line eval expressions
 dcg.regexEscape = new RegExp("(<[^>]*?"+dcg.default.labelEscapePrefix+"[^>]*?>)", "gim"); //regex for escaped elements
 dcg.regexBody = new RegExp("<body[^>]*>((.|[\\n\\r])*)<\\/body>", "im"); //regex for matching body tag
 dcg.regexLinks = new RegExp("<link[^>]*>", "gim"); //regex for matching link tags
@@ -76,6 +79,7 @@ dcg.watchTimeTotal = 0;
 dcg.watchTimeRun = false;
 dcg.renderReady = false; //for checking if the render is done
 dcg.renderDom = false; //for checking if the render will be on the current document
+dcg.evalFunc = undefined; //empty function for running eval expressions
 dcg.init = function () { //function for initializing the engine
     dcg.reset();
 };
@@ -92,10 +96,11 @@ dcg.reset = function () { //function for resetting the presets to their default
     dcg.reconstruct();
 };
 dcg.reconstruct = function () { //function for reconstructing the presets
-    dcg.regexTokenDelimiter = new RegExp(dcg.profile.tokenOpen+"[\\s\\S]*?"+dcg.profile.tokenClose, "g");
-    dcg.regexEvalDelimiter = new RegExp(dcg.profile.evalOpen+"[\\s\\S]*?"+dcg.profile.evalClose, "g");
-    dcg.regexEscape = new RegExp("(<[^>]*?"+dcg.profile.labelEscapePrefix+"[^>]*?>)", "gim");
-    dcg.baseDependencyAttrs = [{elem: "link", attr: "href"}, {elem: "script", attr: "src"}, dcg.profile.labelSource];
+    dcg.baseDependencyAttrs = [{elem: "link", attr: "href"}, {elem: "script", attr: "src"}, dcg.default.labelSource];
+    dcg.regexTokenDelimiter = new RegExp(dcg.default.tokenOpen+"[\\s\\S]*?"+dcg.default.tokenClose, "g");
+    dcg.regexEvalDelimiter = new RegExp(dcg.default.evalOpen+"[\\s\\S]*?"+dcg.default.evalClose, "g");
+    dcg.regexEvalMultiDelimiter = new RegExp(dcg.default.evalMultiOpen+"[\\s\\S]*?"+dcg.default.evalMultiClose, "g");
+    dcg.regexEscape = new RegExp("(<[^>]*?"+dcg.default.labelEscapePrefix+"[^>]*?>)", "gim");
     dcg.keywordRoot = [
         {name: "$base", value: dcg.root.base},
         {name: "$host", value: window.location.protocol + '//' + window.location.host},
@@ -568,11 +573,26 @@ dcg.displayTokens = function (arg) { //display tokens function, inputs are: arg.
     function step_eval() { //replace all eval expressions with their corresponding data
         var i, evalExps, evalExp, evalExpPure, evalExpData;
         evalExps = dcg.removeDuplicatesFromArray(arg.obj.innerHTML.match(dcg.regexEvalDelimiter)); //get all eval expressions from the element and remove duplicated evals
-        for (i = 0;i < evalExps.length;i++) { //iterate through eval
+        for (i = 0;i < evalExps.length;i++) { //iterate through eval expressions
             evalExp = evalExps[i];
             evalExpPure = dcg.decodeHtml(evalExp.substring(dcg.profile.evalOpen.length, evalExp.length-dcg.profile.evalClose.length)); //remove the eval expression delimiters
-            if (dcg.isValidJs(evalExpPure) && evalExpPure.trim() != "") { //if input is valid then evaluate the input and replace it
-                evalExpData = window.eval(evalExpPure);
+            if (dcg.isValidJs("dcg.evalFunc = function () {return "+evalExpPure+";}") && evalExpPure.trim() != "") { //if input is valid then evaluate the input and replace it
+                window.eval("dcg.evalFunc = function () {return "+evalExpPure+";}");
+                evalExpData = dcg.evalFunc();
+                arg.obj.innerHTML = dcg.replaceAll(arg.obj.innerHTML, evalExp, evalExpData, 'g');
+            }
+        }
+        step_multieval();
+    }
+    function step_multieval() { //replace all multi-line eval expressions with their corresponding data
+        var i, evalExps, evalExp, evalExpPure, evalExpData;
+        evalExps = dcg.removeDuplicatesFromArray(arg.obj.innerHTML.match(dcg.regexEvalMultiDelimiter)); //get all multi-line eval expressions from the element and remove duplicated evals
+        for (i = 0;i < evalExps.length;i++) { //iterate through multi-line eval expressions
+            evalExp = evalExps[i];
+            evalExpPure = dcg.decodeHtml(evalExp.substring(dcg.profile.evalMultiOpen.length, evalExp.length-dcg.profile.evalMultiClose.length)); //remove the multi-line eval expression delimiters
+            if (dcg.isValidJs("dcg.evalFunc = function () {"+evalExpPure+"}") && evalExpPure.trim() != "") { //if input is valid then evaluate the input and replace it
+                window.eval("dcg.evalFunc = function () {"+evalExpPure+"}");
+                evalExpData = dcg.evalFunc();
                 arg.obj.innerHTML = dcg.replaceAll(arg.obj.innerHTML, evalExp, evalExpData, 'g');
             }
         }

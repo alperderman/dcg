@@ -421,6 +421,22 @@
             </code></pre>
           </div>
         </div>
+        <p>You can also define multi-line eval expressions. Multi-line expressions allows us to use JavaScript in its full extend however you have to define a return value.</p>
+        <div class="row lg:gutter-2 mb-6">
+          <div class="column col-12 lg:col-6">
+            <h3 class="mt-0">design.html</h3>
+            <pre><code class="language-html">
+              &lt;p>
+                Sum: &#123;&#33;&#37;
+                    var result = &#123;&#123;numbers.n1}} + &#123;&#123;numbers.n2}};
+                    return result;
+                  %!}
+                // Returns 108
+              &lt;/p>
+            </code></pre>
+          </div>
+        </div>
+        <p>Be careful while using eval expressions. Eval expressions are basically an encapsulated function in a string form and they are not sanitized in anyway, if you write an unsanitized user inputted data inside the eval expressions, they can be compromised so use only the tokens and data that you are absolutely sure that is safe to run on client-side.</p>
       </section>
     </div>
     <div dcg-obj="content.conditional.desc" dcg-html>
@@ -443,6 +459,7 @@
             </code></pre>
           </div>
         </div>
+        <p>Same as eval expressions, conditional rendering uses the native <code>eval</code> function. So use only the tokens and data that you are absolutely sure that is safe to run on client-side.</p>
       </section>
     </div>
     <div dcg-obj="content.support.desc" dcg-html>
