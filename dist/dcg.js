@@ -1,5 +1,5 @@
 /*!
-* Dynamic Content Generation (1.0.6) 2021/08/30
+* Dynamic Content Generation (1.0.6) 2021/11/22
 */
 
 //polyfills
@@ -15,7 +15,6 @@ var dcg = {}; //main object
 dcg.logPrefix = "[DCG] "; //log prefix
 dcg.default = { //default presets
     baseAttrs: ["src", "href"], //array of attributes that will be replaced with base path
-    cacheRender: false, //for caching render change it to true if its going to be used in production
     labelDesign: "dcg-design", //design attribute: for locating the design page
     labelBase: "dcg-base", //base attribute: for setting base path for dependencies on the design page
     labelObj: "dcg-obj", //dynamic content attribute
@@ -39,6 +38,7 @@ dcg.default = { //default presets
     evalClose: "%}", //closing delimiter for eval expressions
     evalMultiOpen: "{!%", //opening delimiter for multi-line eval expressions
     evalMultiClose: "%!}", //closing delimiter for multi-line eval expressions
+    cacheRender: false, //for caching render change it to true if its going to be used in production
     showLogs: false, //for showing the render logs
     removeCss: false //for removing the styles of the content page, if set to true styles will not be carried over rendered page
 };
@@ -55,7 +55,7 @@ dcg.keywordObject = {
 dcg.keywordRoot = [
     {name: "$base", value: dcg.root.base},
     {name: "$host", value: window.location.protocol + '//' + window.location.host},
-    {name: "$path", value: window.location.pathname.substring(0, window.location.pathname.lastIndexOf("/")+1)},
+    {name: "$path", value: window.location.pathname.substring(0, window.location.pathname.lastIndexOf("/"))},
     {name: "$file", value: window.location.pathname.split('/').pop()},
     {name: "$query", value: window.location.search},
     {name: "$hash", value: window.location.hash}
@@ -70,9 +70,9 @@ dcg.regexLinks = new RegExp("<link[^>]*>", "gim"); //regex for matching link tag
 dcg.regexStyles = new RegExp("<style[^>]*>([\\s\\S]*?)<\\/style>", "gim"); //regex for style tags
 dcg.regexScripts = new RegExp("<script[^>]*>([\\s\\S]*?)<\\/script>", "gim"); //regex for script tags
 dcg.profile = {}; //preset profile for assigning custom presets
-dcg.dataDynamic = {}; //for storing dynamic contents, they are nestable and usable as tokens (xml and json)
-dcg.dataStatic = {}; //for storing static contents (raw html and template references)
-//time variables for calculating elapsed time
+dcg.dataDynamic = {}; //for storing the dynamic contents, they are nestable and usable as tokens (xml and json)
+dcg.dataStatic = {}; //for storing the static contents (raw html and template references)
+//time variables for calculating the elapsed time
 dcg.watchTimeStart = 0;
 dcg.watchTimeStop = 0;
 dcg.watchTimeTotal = 0;
@@ -80,7 +80,7 @@ dcg.watchTimeRun = false;
 dcg.renderReady = false; //for checking if the render is done
 dcg.renderDom = false; //for checking if the render will be on the current document
 dcg.evalFunc = undefined; //empty function for running eval expressions
-dcg.init = function () { //function for initializing the engine
+dcg.init = function () { //function for initializing the framework
     dcg.reset();
 };
 dcg.config = function (options) { //function for setting custom presets
@@ -91,7 +91,7 @@ dcg.config = function (options) { //function for setting custom presets
     }
     dcg.reconstruct();
 };
-dcg.reset = function () { //function for resetting the presets to their default
+dcg.reset = function () { //function for resetting the presets to their default values
     dcg.profile = dcg.mergeDeep(dcg.default);
     dcg.reconstruct();
 };
@@ -104,7 +104,7 @@ dcg.reconstruct = function () { //function for reconstructing the presets
     dcg.keywordRoot = [
         {name: "$base", value: dcg.root.base},
         {name: "$host", value: window.location.protocol + '//' + window.location.host},
-        {name: "$path", value: window.location.pathname.substring(0, window.location.pathname.lastIndexOf("/")+1)},
+        {name: "$path", value: window.location.pathname.substring(0, window.location.pathname.lastIndexOf("/"))},
         {name: "$file", value: window.location.pathname.split('/').pop()},
         {name: "$query", value: window.location.search},
         {name: "$hash", value: window.location.hash}
@@ -162,12 +162,11 @@ dcg.render = function (arg) { //wrapper for renderDesign function, inputs are: a
         if (arg == null) {arg = {};}
         dcg.renderReady = false;
         dcg.renderDom = false;
-        if (arg.content == null) { //if content and contentSrc is null then reference the current document as content
+        if (arg.content == null) { //if the content and the contentSrc is null then reference the current document as the content
             if (arg.contentSrc == null) {
                 dcg.renderDom = true;
                 step_content(document);
             } else {
-                arg.contentSrc;
                 dcg.xhr(arg.contentSrc, function (xhr) {
                     if (xhr.readyState == 4) {
                         if (xhr.status == 200) {
@@ -201,10 +200,10 @@ dcg.render = function (arg) { //wrapper for renderDesign function, inputs are: a
         var base;
         if (arg.base != null) {
             base = arg.base;
-        } else { //if base is not defined, check the base attribute
+        } else { //if the base is not defined, check the base attribute
             base = content.body.getAttribute(dcg.profile.labelBase);
         }
-        if (base != null && base[base.length-1] != "/") { //if base path doesn't end with slash, insert slash
+        if (base != null && base[base.length-1] != "/") { //if the base path doesn't end with slash, insert slash to it
             base = base+"/";
         }
         dcg.root.base = base;
@@ -212,7 +211,7 @@ dcg.render = function (arg) { //wrapper for renderDesign function, inputs are: a
     }
     function step_design(content, base) { //get the design
         var design, designSrc, bodyLabelDesign;
-        if (arg.design == null) { //if design is null then check for the external source in designSrc and design attribute in order
+        if (arg.design == null) { //if the design is null then check for the external source in designSrc and design attribute in the order
             if (arg.designSrc == null) {
                 bodyLabelDesign = content.body.getAttribute(dcg.profile.labelDesign);
                 if (bodyLabelDesign == null) {
@@ -234,7 +233,7 @@ dcg.render = function (arg) { //wrapper for renderDesign function, inputs are: a
                     }
                 }
             });
-        } else { //if design is defined then pass it directly
+        } else { //if the design is defined then pass it directly
             design = arg.design;
             if (base == null) {
                 base = "";
@@ -254,14 +253,14 @@ dcg.render = function (arg) { //wrapper for renderDesign function, inputs are: a
     }
     return result;
 };
-dcg.renderDesign = function (arg) { //the main render function, inputs are: arg.content, arg.design, arg.base, arg.callback
+dcg.renderDesign = function (arg) { //main render function, inputs are: arg.content, arg.design, arg.base, arg.callback
     step_start();
     function step_start() { //start the time and render
         dcg.watchStart();
         dcg.watchPrint("Render started!");
         step_markcss();
     }
-    function step_markcss() { //find styles from the content and mark them with labelRemove
+    function step_markcss() { //find the styles from the content and mark them with labelRemove
         var i, contentStyle, contentCss;
         if (dcg.profile.removeCss) {
             contentStyle = arg.content.getElementsByTagName('style');
@@ -276,7 +275,7 @@ dcg.renderDesign = function (arg) { //the main render function, inputs are: arg.
         }
         step_ext1();
     }
-    function step_ext1() { //load the external contents and then continue render
+    function step_ext1() { //load the external contents and then continue to render
         var externalContents;
         externalContents = dcg.getElementsByAttribute(arg.content.body, dcg.profile.labelSource);
         dcg.loadContents(externalContents, function () {
@@ -284,7 +283,7 @@ dcg.renderDesign = function (arg) { //the main render function, inputs are: arg.
             step_storestatic();
         });
     }
-    function step_storestatic() { //iterate through raw contents and store them
+    function step_storestatic() { //iterate through the raw contents and store them
         var i, staticContents, staticContent, contentId;
         staticContents = dcg.getElementsByAttribute(arg.content.body, dcg.profile.labelRaw);
         for (i = 0; i < staticContents.length; i++) {
@@ -297,7 +296,7 @@ dcg.renderDesign = function (arg) { //the main render function, inputs are: arg.
         dcg.watchPrintSplit("Static contents, stored!");
         step_storedynamic();
     }
-    function step_storedynamic() { //iterate through dynamic contents and store them
+    function step_storedynamic() { //iterate through the dynamic contents and store them
         var i, dynamicContents, dynamicContent, contentId, dynamicContentParse, dynamicContentNested;
         dynamicContents = dcg.getElementsByAttribute(arg.content.body, dcg.profile.labelObj);
         for (i = 0; i < dynamicContents.length; i++) {
@@ -320,35 +319,35 @@ dcg.renderDesign = function (arg) { //the main render function, inputs are: arg.
         dcg.watchPrintSplit("Dynamic contents, stored!");
         step_dependency();
     }
-    function step_dependency() { //replace paths on the design with the base path and add the dependencies
+    function step_dependency() { //replace the paths on the design with the base path and add the dependencies
         var i, fixedDesign, designLinks, designStyles, designScripts;
-        fixedDesign = dcg.replaceRoot(arg.design); //replace root tokens
+        fixedDesign = dcg.replaceRoot(arg.design); //replace the root tokens
         fixedDesign = fix_path({pairs: dcg.baseDependencyAttrs, html: fixedDesign, base: arg.base});
-        if ((/\<\/body\>/).test(fixedDesign)) { //if design has body then insert only the body with its attributes
+        if ((/\<\/body\>/).test(fixedDesign)) { //if the design has body then insert only the body with its attributes
             arg.content.documentElement.innerHTML = arg.content.documentElement.innerHTML.replace("<body", "<body"+fixedDesign.match("<body" + "(.*)" + ">")[1]);
             arg.content.body.innerHTML = fixedDesign.match(dcg.regexBody)[1];
         } else { //if it doesn't then insert it directly
             arg.content.body.innerHTML = fixedDesign;
         }
-        //get link elements from design and insert them
+        //get the link elements from the design and insert them
         designLinks = fixedDesign.match(dcg.regexLinks);
         if (designLinks) {
             for (i = 0;i < designLinks.length;i++) {
                 arg.content.head.innerHTML += designLinks[i];
             }
         }
-        //get style elements from design and insert them
+        //get the style elements from the design and insert them
         designStyles = fixedDesign.match(dcg.regexStyles);
         if (designStyles) {
             for (i = 0;i < designStyles.length;i++) {
                 arg.content.head.innerHTML += designStyles[i];
             }
         }
-        //remove content script elements
+        //remove the script elements that are in the content
         while (arg.content.getElementsByTagName('script').length > 0) {
             arg.content.getElementsByTagName('script')[0].parentNode.removeChild(arg.content.getElementsByTagName('script')[0]);
         }
-        //get script elements from design and insert them
+        //get the script elements from the design and insert them
         designScripts = fixedDesign.match(dcg.regexScripts);
         if (designScripts) {
             for (i = 0;i < designScripts.length;i++) {
@@ -358,7 +357,7 @@ dcg.renderDesign = function (arg) { //the main render function, inputs are: arg.
         dcg.watchPrintSplit("Dependencies, added!");
         step_ext2();
     }
-    function step_ext2() { //load external templates and continue render
+    function step_ext2() { //load the external templates and continue to render
         var externalContents;
         externalContents = dcg.getElementsByAttribute(arg.content.body, dcg.profile.labelSource);
         dcg.loadContents(externalContents, function () {
@@ -366,7 +365,7 @@ dcg.renderDesign = function (arg) { //the main render function, inputs are: arg.
             step_insertstatic();
         });
     }
-    function step_insertstatic() { //insert raw contents
+    function step_insertstatic() { //insert the raw contents
         var i, contentId, rawTargets, rawTarget;
         for (contentId in dcg.dataStatic) {
             rawTargets = dcg.getElementsByAttribute(arg.content.body, dcg.profile.labelRaw, contentId);
@@ -398,7 +397,7 @@ dcg.renderDesign = function (arg) { //the main render function, inputs are: arg.
         dcg.watchPrintSplit("Templates, rendered!");
         step_insertdynamic();
     }
-    function step_insertdynamic() { //insert dynamic contents, display the tokens
+    function step_insertdynamic() { //insert the dynamic contents and display the tokens
         arg.content.body = dcg.displayTokens({obj: arg.content.body});
         dcg.watchPrintSplit("Dynamic contents, inserted!");
         step_escape();
@@ -438,7 +437,7 @@ dcg.renderDesign = function (arg) { //the main render function, inputs are: arg.
         dcg.watchStop();
         dcg.watchPrint("Render finished! Total time:", true);
     }
-    function fix_path(arg) { //replace paths with base path, inputs are: arg.html, arg.pairs, arg.base
+    function fix_path(arg) { //replace the paths with the base path, inputs are: arg.html, arg.pairs, arg.base
         var i, ii, pair, attr, elems, obj = document.createElement("temp");
         obj.innerHTML = arg.html;
         for (i = 0; i < arg.pairs.length; i++) {
@@ -533,7 +532,7 @@ dcg.displayTokens = function (arg) { //display tokens function, inputs are: arg.
                         arr.push(aliasRegexMatch[2]);
                         aliasRegexMatches.push(arr);
                     }
-                    for (ii = 0;ii < aliasRegexMatches.length;ii++) { //iterate through the all of the matches and replace them with literal definition using regex
+                    for (ii = 0;ii < aliasRegexMatches.length;ii++) { //iterate through the all of the matches and replace them with literal definitions using regex
                         aliasMatch = aliasRegexMatches[ii];
                         aliasReplace = dcg.profile.labelRepeat+"='"+repeatAttrSplit[0]+"."+key+"."+aliasMatch[1]+"'";
                         objRepeatClone.innerHTML = dcg.replaceAll(objRepeatClone.innerHTML, aliasMatch[0], aliasReplace, 'g');
@@ -558,7 +557,7 @@ dcg.displayTokens = function (arg) { //display tokens function, inputs are: arg.
                             }
                         }
                     }
-                    objRepeatCloneHtml += objRepeatClone.innerHTML; //expand the variable with the clone element that we have processed this will be done every loop and we will insert it after the iteration
+                    objRepeatCloneHtml += objRepeatClone.innerHTML; //expand the variable with the clone element that we have processed, this will be done in every loop and processed elements will be inserted after the whole iteration completes
                     i++;
                 }
             }
@@ -677,7 +676,7 @@ dcg.isValidJs = function (code) { //try eval function
     }
     return result;
 };
-dcg.isElement = function (el) { //check if html element function
+dcg.isElement = function (el) { //check if input is html element function
     return el instanceof Element || el instanceof HTMLDocument;  
 };
 dcg.getElementsByAttribute = function (x, att, val) { //get elements by their attribute and their value
@@ -766,7 +765,7 @@ dcg.getRecursiveValue = function (arg) { //getting a value from a multi-dimensio
     }
     return val;
 };
-dcg.setNestedPropertyValue = function (obj, fields, val) { //function for setting a value deep inside an object
+dcg.setNestedPropertyValue = function (obj, fields, val) { //function for setting a value, deep inside an object
   fields = fields.split('.');
   var cur = obj,
   last = fields.pop();
@@ -843,11 +842,11 @@ dcg.loadTemplate = function (arg) { //load template function, inputs are: arg.id
     }
     objClone = init_template(arg.id, arg.obj).cloneNode(true); //load and clone the template
     attrData = objClone.getAttribute(dcg.profile.labelTemplateData); //get the referenced template's data attribute
-    if ((!arg.data || !arg.hasOwnProperty("data")) && attrData) { //if data is not defined previously check if its defined on the referenced template
+    if ((!arg.data || !arg.hasOwnProperty("data")) && attrData) { //if data is not defined previously, check if its defined on the referenced template
         attrDataSplit = attrData.split(".");
         arg.data = dcg.getRecursiveValue({arr: dcg.dataDynamic, keys: attrDataSplit, i: 0}); //recursively get the value from the data
         if (arg.data === false) { //check if there is an object defined on the json content
-            arg.data = JSON.parse(attrData); //if there isn't parse the label data
+            arg.data = JSON.parse(attrData); //if there isn't, parse the label data
         }
     }
     if (arg.data) { //if data is defined then display the tokens
@@ -868,7 +867,7 @@ dcg.loadTemplate = function (arg) { //load template function, inputs are: arg.id
         return template; //return the template
     }
 };
-dcg.loadContents = function (node, callback, i) { //fetch and load external contents this is a recursive function
+dcg.loadContents = function (node, callback, i) { //fetch and load external contents, this is a recursive function
     if (node == null) {node = dcg.getElementsByAttribute(document.documentElement, dcg.profile.labelSource);} //if node doesn't exist then set it to document element and get the elements with source attribute
     if (i == null) {i = 0;} //if index doesn't exist, set it to 0
     var src, len = node.length;
@@ -897,7 +896,7 @@ dcg.loadScripts = function (node, callback, i) { //inject scripts from specified
     if (i == null) {i = 0;} //if index is not defined then set it to 0
     var len = node.length;
     if (len > 0 && i < len) { //if there are script elements and index is lower than total elements, continue
-        if (node[i].src) { //check if script element has source attribute if it has then fetch the external script and inject it
+        if (node[i].src) { //check if script element has source attribute, if it has then fetch the external script and inject it
             dcg.getScript(node[i].src, function () {
                 i++;
                 dcg.loadScripts(node, callback, i);
