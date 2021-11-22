@@ -1,9 +1,11 @@
 # DCG
-Dynamic Content Generation (DCG) is a front-end templating library tailored for comfort and ease of usage.
+Dynamic Content Generation (DCG) is a front-end templating framework that aims for content management.
 
-The main difference between other template engines and DCG is, contents and layouts are splitted from each other and since the contents and designs are seperate entities, it allows us to re-use the same contents or same designs on a different page thus reduces the code duplication.
+The main difference between other templating frameworks and DCG is, contents and layouts are splitted from each other on DCG. And In addition to that, DCG works like a preprocessing intrepreter, so you can use it with other frameworks but in order to do that, the formation and the structure of your project must be coherent with DCG.
 
-#### [Documentation](https://alperderman.github.io/project/dcg/docs)
+DCG basically stitches the content and the layout together then generates and renders the final result. Since the contents and designs are completely seperate entities, it allows us to re-use the same contents or same designs on a different page thus reduces the code duplication and increases maintainability.
+
+#### [Full Documentation](https://alperderman.github.io/project/dcg/docs)
 
 ## Example
 content.html (the main page)
