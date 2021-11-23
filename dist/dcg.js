@@ -14,10 +14,10 @@ if (!Object.values) { Object.values = function values(obj) { var res = []; for (
 var dcg = {}; //main object
 dcg.logPrefix = "[DCG] "; //log prefix
 dcg.default = { //default presets
-    base: "", //for setting base path for the main content page
-    baseDesign: "", //for setting base path for the design page
+    base: "", //for setting base path
     baseAttrs: ["src", "href"], //array of attributes that will be replaced with the base path on the design page
     labelDesign: "dcg-design", //design attribute: for locating the design page
+    labelBase: "dcg-base", //base attribute: for setting base path for dependencies on the design page
     labelObj: "dcg-obj", //dynamic content attribute
     labelRaw: "dcg-raw", //static content attribute
     labelJson: "dcg-json", //json content attribute
@@ -52,7 +52,6 @@ dcg.keywordObject = {
 };
 dcg.keywordRoot = [
     {name: "$base", value: dcg.default.base},
-    {name: "$basedesign", value: dcg.default.baseDesign},
     {name: "$host", value: window.location.protocol + '//' + window.location.host},
     {name: "$path", value: window.location.pathname.substring(0, window.location.pathname.lastIndexOf("/"))},
     {name: "$file", value: window.location.pathname.split('/').pop()},
@@ -102,7 +101,6 @@ dcg.reconstruct = function () { //function for reconstructing the presets
     dcg.regexEscape = new RegExp("(<[^>]*?"+dcg.profile.labelEscapePrefix+"[^>]*?>)", "gim");
     dcg.keywordRoot = [
         {name: "$base", value: dcg.profile.base},
-        {name: "$basedesign", value: dcg.profile.baseDesign},
         {name: "$host", value: window.location.protocol + '//' + window.location.host},
         {name: "$path", value: window.location.pathname.substring(0, window.location.pathname.lastIndexOf("/"))},
         {name: "$file", value: window.location.pathname.split('/').pop()},
@@ -162,9 +160,6 @@ dcg.render = function (arg) { //wrapper for renderDesign function, inputs are: a
         if (arg == null) {arg = {};}
         dcg.renderReady = false;
         dcg.renderDom = false;
-        if (dcg.profile.base != "") {
-            document.head.innerHTML = document.head.innerHTML + "<base href='"+dcg.profile.base+"' />";
-        }
         if (arg.content == null) { //if the content and the contentSrc is null then reference the current document as the content
             if (arg.contentSrc == null) {
                 dcg.renderDom = true;
@@ -201,12 +196,15 @@ dcg.render = function (arg) { //wrapper for renderDesign function, inputs are: a
     }
     function step_base(content) { //get the base path
         var base;
-        if (dcg.profile.baseDesign != "") {
-            base = dcg.profile.baseDesign;
+        if (dcg.profile.base != "") {
+            base = dcg.profile.base;
+        } else { //if the base is not defined, check the base attribute
+            base = content.body.getAttribute(dcg.profile.labelBase);
         }
         if (base != null && base[base.length-1] != "/") { //if the base path doesn't end with slash, insert slash to it
             base = base+"/";
         }
+        dcg.profile.base = base;
         step_design(content, base);
     }
     function step_design(content, base) { //get the design
@@ -408,6 +406,7 @@ dcg.renderDesign = function (arg) { //main render function, inputs are: arg.cont
         arg.content.documentElement.innerHTML = dcg.removeMarked(arg.content.documentElement);
         arg.content.body.innerHTML = dcg.replaceEscape(arg.content.body.innerHTML);
         arg.content.body.removeAttribute(dcg.profile.labelDesign);
+        arg.content.body.removeAttribute(dcg.profile.labelBase);
         dcg.renderReady = true;
         dcg.watchPrintSplit("Elements, escaped and remnants, removed!");
         step_inject();
