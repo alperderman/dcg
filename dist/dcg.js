@@ -1,5 +1,5 @@
 /*!
-* Dynamic Content Generation (1.0.6) 2021/11/22
+* Dynamic Content Generation (1.0.7) 2021/11/23
 */
 
 //polyfills
@@ -14,9 +14,10 @@ if (!Object.values) { Object.values = function values(obj) { var res = []; for (
 var dcg = {}; //main object
 dcg.logPrefix = "[DCG] "; //log prefix
 dcg.default = { //default presets
-    baseAttrs: ["src", "href"], //array of attributes that will be replaced with base path
+    base: "", //for setting base path for the main content page
+    baseDesign: "", //for setting base path for the design page
+    baseAttrs: ["src", "href"], //array of attributes that will be replaced with the base path on the design page
     labelDesign: "dcg-design", //design attribute: for locating the design page
-    labelBase: "dcg-base", //base attribute: for setting base path for dependencies on the design page
     labelObj: "dcg-obj", //dynamic content attribute
     labelRaw: "dcg-raw", //static content attribute
     labelJson: "dcg-json", //json content attribute
@@ -43,9 +44,6 @@ dcg.default = { //default presets
     removeCss: false //for removing the styles of the content page, if set to true styles will not be carried over rendered page
 };
 //keywords to be used inside the tokens
-dcg.root = {
-    base: ""
-};
 dcg.keywordObject = {
     this:"_this",
     key:"_key",
@@ -53,7 +51,8 @@ dcg.keywordObject = {
     len:"_length"
 };
 dcg.keywordRoot = [
-    {name: "$base", value: dcg.root.base},
+    {name: "$base", value: dcg.default.base},
+    {name: "$basedesign", value: dcg.default.baseDesign},
     {name: "$host", value: window.location.protocol + '//' + window.location.host},
     {name: "$path", value: window.location.pathname.substring(0, window.location.pathname.lastIndexOf("/"))},
     {name: "$file", value: window.location.pathname.split('/').pop()},
@@ -96,13 +95,14 @@ dcg.reset = function () { //function for resetting the presets to their default 
     dcg.reconstruct();
 };
 dcg.reconstruct = function () { //function for reconstructing the presets
-    dcg.baseDependencyAttrs = [{elem: "link", attr: "href"}, {elem: "script", attr: "src"}, dcg.default.labelSource];
-    dcg.regexTokenDelimiter = new RegExp(dcg.default.tokenOpen+"[\\s\\S]*?"+dcg.default.tokenClose, "g");
-    dcg.regexEvalDelimiter = new RegExp(dcg.default.evalOpen+"[\\s\\S]*?"+dcg.default.evalClose, "g");
-    dcg.regexEvalMultiDelimiter = new RegExp(dcg.default.evalMultiOpen+"[\\s\\S]*?"+dcg.default.evalMultiClose, "g");
-    dcg.regexEscape = new RegExp("(<[^>]*?"+dcg.default.labelEscapePrefix+"[^>]*?>)", "gim");
+    dcg.baseDependencyAttrs = [{elem: "link", attr: "href"}, {elem: "script", attr: "src"}, dcg.profile.labelSource];
+    dcg.regexTokenDelimiter = new RegExp(dcg.profile.tokenOpen+"[\\s\\S]*?"+dcg.profile.tokenClose, "g");
+    dcg.regexEvalDelimiter = new RegExp(dcg.profile.evalOpen+"[\\s\\S]*?"+dcg.profile.evalClose, "g");
+    dcg.regexEvalMultiDelimiter = new RegExp(dcg.profile.evalMultiOpen+"[\\s\\S]*?"+dcg.profile.evalMultiClose, "g");
+    dcg.regexEscape = new RegExp("(<[^>]*?"+dcg.profile.labelEscapePrefix+"[^>]*?>)", "gim");
     dcg.keywordRoot = [
-        {name: "$base", value: dcg.root.base},
+        {name: "$base", value: dcg.profile.base},
+        {name: "$basedesign", value: dcg.profile.baseDesign},
         {name: "$host", value: window.location.protocol + '//' + window.location.host},
         {name: "$path", value: window.location.pathname.substring(0, window.location.pathname.lastIndexOf("/"))},
         {name: "$file", value: window.location.pathname.split('/').pop()},
@@ -155,13 +155,16 @@ dcg.watchPrintSplit = function (text) { //function for splitting and printing th
     dcg.watchPrint(text);
     dcg.watchSplit();
 };
-dcg.render = function (arg) { //wrapper for renderDesign function, inputs are: arg.content, arg.contentSrc, arg.design, arg.designSrc, arg.base
+dcg.render = function (arg) { //wrapper for renderDesign function, inputs are: arg.content, arg.contentSrc, arg.design, arg.designSrc
     var result;
     step_start();
     function step_start() { //start the render wrapper
         if (arg == null) {arg = {};}
         dcg.renderReady = false;
         dcg.renderDom = false;
+        if (dcg.profile.base != "") {
+            document.head.innerHTML = document.head.innerHTML + "<base href='"+dcg.profile.base+"' />";
+        }
         if (arg.content == null) { //if the content and the contentSrc is null then reference the current document as the content
             if (arg.contentSrc == null) {
                 dcg.renderDom = true;
@@ -198,20 +201,17 @@ dcg.render = function (arg) { //wrapper for renderDesign function, inputs are: a
     }
     function step_base(content) { //get the base path
         var base;
-        if (arg.base != null) {
-            base = arg.base;
-        } else { //if the base is not defined, check the base attribute
-            base = content.body.getAttribute(dcg.profile.labelBase);
+        if (dcg.profile.baseDesign != "") {
+            base = dcg.profile.baseDesign;
         }
         if (base != null && base[base.length-1] != "/") { //if the base path doesn't end with slash, insert slash to it
             base = base+"/";
         }
-        dcg.root.base = base;
         step_design(content, base);
     }
     function step_design(content, base) { //get the design
         var design, designSrc, bodyLabelDesign;
-        if (arg.design == null) { //if the design is null then check for the external source in designSrc and design attribute in the order
+        if (arg.design == null) { //if the design is null then check for the external source in designSrc and design attribute
             if (arg.designSrc == null) {
                 bodyLabelDesign = content.body.getAttribute(dcg.profile.labelDesign);
                 if (bodyLabelDesign == null) {
@@ -408,7 +408,6 @@ dcg.renderDesign = function (arg) { //main render function, inputs are: arg.cont
         arg.content.documentElement.innerHTML = dcg.removeMarked(arg.content.documentElement);
         arg.content.body.innerHTML = dcg.replaceEscape(arg.content.body.innerHTML);
         arg.content.body.removeAttribute(dcg.profile.labelDesign);
-        arg.content.body.removeAttribute(dcg.profile.labelBase);
         dcg.renderReady = true;
         dcg.watchPrintSplit("Elements, escaped and remnants, removed!");
         step_inject();
