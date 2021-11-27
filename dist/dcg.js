@@ -1,5 +1,5 @@
 /*!
-* Dynamic Content Generation (1.0.7) 2021/11/23
+* Dynamic Content Generation (1.0.7) 2021/11/27
 */
 
 //polyfills
@@ -10,6 +10,8 @@ function _defineProperty(obj, key, value) { if (key in obj) { Object.definePrope
 if (!Object.assign) { Object.defineProperty(Object, 'assign', { enumerable: false, configurable: true, writable: true, value: function(target) { 'use strict'; if (target === undefined || target === null) { throw new TypeError('Cannot convert first argument to object'); } var to = Object(target); for (var i = 1; i < arguments.length; i++) { var nextSource = arguments[i]; if (nextSource === undefined || nextSource === null) { continue; } nextSource = Object(nextSource); var keysArray = Object.keys(Object(nextSource)); for (var nextIndex = 0, len = keysArray.length; nextIndex < len; nextIndex++) { var nextKey = keysArray[nextIndex]; var desc = Object.getOwnPropertyDescriptor(nextSource, nextKey); if (desc !== undefined && desc.enumerable) { to[nextKey] = nextSource[nextKey]; } } } return to; } }); }
 
 if (!Object.values) { Object.values = function values(obj) { var res = []; for (var i in obj) { if (Object.prototype.hasOwnProperty.call(obj, i)) { res.push(obj[i]); } } return res; }; }
+
+if (typeof window.CustomEvent !== 'function') { window.CustomEvent = function (event, params) { params = params || {bubbles: false, cancelable: false, detail: null}; var evt = document.createEvent('CustomEvent'); evt.initCustomEvent(event, params.bubbles, params.cancelable, params.detail); return evt; }; }
 
 var dcg = {}; //main object
 dcg.logPrefix = "[DCG] "; //log prefix
@@ -919,9 +921,6 @@ dcg.xhr = function (url, callback, cache, method, async) { //xhr function used f
     if (async == null) {async = true;}
     var xhr, guid, cacheUrl, hashUrl;
     method = method.toUpperCase();
-    if (!(method === 'GET' || method === 'POST' || method === 'HEAD')) {
-        throw new Error('method must either be GET, POST, or HEAD');
-    }
     xhr = new XMLHttpRequest();
     xhr.onreadystatechange = function () {
         if (xhr.readyState == XMLHttpRequest.DONE) {
@@ -932,7 +931,7 @@ dcg.xhr = function (url, callback, cache, method, async) { //xhr function used f
         guid = Date.now();
         cacheUrl = url.replace(/#.*$/, "");
         hashUrl = url.slice(cacheUrl.length);
-        cacheURL = cacheUrl.replace(/([?&])_=[^&]*/, "$1");
+        cacheUrl = cacheUrl.replace(/([?&])_=[^&]*/, "$1");
         hashUrl = ((/\?/).test(cacheUrl) ? "&" : "?") + "_=" + (guid++) + hashUrl;
         url = cacheUrl + hashUrl;
     }
@@ -940,16 +939,6 @@ dcg.xhr = function (url, callback, cache, method, async) { //xhr function used f
     xhr.send();
 };
 dcg.DOMLoad = function () { //imitate window onload
-    (function () { //polyfill for dispatchEvent
-        if (typeof window.CustomEvent === 'function') {return false;}
-        function CustomEvent(event, params) {
-            params = params || {bubbles: false, cancelable: false, detail: null};
-            var evt = document.createEvent('CustomEvent');
-            evt.initCustomEvent(event, params.bubbles, params.cancelable, params.detail);
-            return evt;
-        }
-        window.CustomEvent = CustomEvent;
-    })();
     window.dispatchEvent(new CustomEvent('DOMContentLoaded'));
     window.dispatchEvent(new CustomEvent('load'));
 };
