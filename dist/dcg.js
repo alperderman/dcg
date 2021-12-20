@@ -17,7 +17,6 @@ var dcg = {}; //main object
 dcg.logPrefix = "[DCG] "; //log prefix
 dcg.default = { //default presets
     base: "", //for setting base path
-    baseAttrs: ["src", "href"], //array of attributes that will be replaced with the base path on the design page
     labelDesign: "dcg-design", //design attribute: for locating the design page
     labelBase: "dcg-base", //base attribute: for setting base path for dependencies on the design page
     labelObj: "dcg-obj", //dynamic content attribute
@@ -61,7 +60,6 @@ dcg.keywordRoot = [
     {name: "$query", value: window.location.search},
     {name: "$hash", value: window.location.hash}
 ];
-dcg.baseDependencyAttrs = [{elem: "link", attr: "href"}, {elem: "script", attr: "src"}, dcg.default.labelSource]; //the main dependency tags and attributes on the design that will be replace with base path
 dcg.regexTokenDelimiter = new RegExp(dcg.default.tokenOpen+"[\\s\\S]*?"+dcg.default.tokenClose, "g"); //regex for tokens
 dcg.regexEvalDelimiter = new RegExp(dcg.default.evalOpen+"[\\s\\S]*?"+dcg.default.evalClose, "g"); //regex for eval expressions
 dcg.regexEvalMultiDelimiter = new RegExp(dcg.default.evalMultiOpen+"[\\s\\S]*?"+dcg.default.evalMultiClose, "g"); //regex for multi-line eval expressions
@@ -97,7 +95,6 @@ dcg.reset = function () { //function for resetting the presets to their default 
     dcg.reconstruct();
 };
 dcg.reconstruct = function () { //function for reconstructing the presets
-    dcg.baseDependencyAttrs = [{elem: "link", attr: "href"}, {elem: "script", attr: "src"}, dcg.profile.labelSource];
     dcg.regexTokenDelimiter = new RegExp(dcg.profile.tokenOpen+"[\\s\\S]*?"+dcg.profile.tokenClose, "g");
     dcg.regexEvalDelimiter = new RegExp(dcg.profile.evalOpen+"[\\s\\S]*?"+dcg.profile.evalClose, "g");
     dcg.regexEvalMultiDelimiter = new RegExp(dcg.profile.evalMultiOpen+"[\\s\\S]*?"+dcg.profile.evalMultiClose, "g");
@@ -323,7 +320,6 @@ dcg.renderDesign = function (arg) { //main render function, inputs are: arg.cont
     function step_dependency() { //replace the paths on the design with the base path and add the dependencies
         var i, fixedDesign, designLinks, designStyles, designScripts;
         fixedDesign = dcg.replaceRoot(arg.design); //replace the root tokens
-        fixedDesign = fix_path({pairs: dcg.baseDependencyAttrs, html: fixedDesign, base: arg.base});
         if ((/\<\/body\>/).test(fixedDesign)) { //if the design has body then insert only the body with its attributes
             arg.content.documentElement.innerHTML = arg.content.documentElement.innerHTML.replace("<body", "<body"+fixedDesign.match("<body" + "(.*)" + ">")[1]);
             arg.content.body.innerHTML = fixedDesign.match(dcg.regexBody)[1];
@@ -405,7 +401,6 @@ dcg.renderDesign = function (arg) { //main render function, inputs are: arg.cont
     }
     function step_escape() { //escape the elements, remove the remnants and replace root tokens
         arg.content.body.innerHTML = dcg.replaceRoot(arg.content.body.innerHTML);
-        arg.content.body.innerHTML = fix_path({pairs: dcg.profile.baseAttrs, html: arg.content.body.innerHTML, base: arg.base});
         arg.content.documentElement.innerHTML = dcg.removeMarked(arg.content.documentElement);
         arg.content.body.innerHTML = dcg.replaceEscape(arg.content.body.innerHTML);
         arg.content.body.removeAttribute(dcg.profile.labelDesign);
@@ -437,45 +432,6 @@ dcg.renderDesign = function (arg) { //main render function, inputs are: arg.cont
     function step_finish() { //stop the time and print the total elapsed time
         dcg.watchStop();
         dcg.watchPrint("Render finished! Total time:", true);
-    }
-    function fix_path(arg) { //replace the paths with the base path, inputs are: arg.html, arg.pairs, arg.base
-        var i, ii, pair, attr, elems, obj = document.createElement("temp");
-        obj.innerHTML = arg.html;
-        for (i = 0; i < arg.pairs.length; i++) {
-            pair = arg.pairs[i];
-            if (typeof pair !== 'object') {
-                attr = pair;
-            } else {
-                attr = pair.attr;
-            }
-            if (pair.elem != null) {
-                if (typeof pair.elem !== 'object') {
-                    elems = obj.getElementsByTagName(pair.elem);
-                    replace_url(elems);
-                } else {
-                    for (ii = 0; ii < pair.elem.length; ii++) {
-                        elems = obj.getElementsByTagName(pair.elem[ii]);
-                        replace_url(elems);
-                    }
-                }
-            } else {
-                elems = dcg.getElementsByAttribute(obj, attr);
-                replace_url(elems);
-            }
-        }
-        function replace_url(elems) {
-            var i, elem, elemAttr;
-            for (i = 0; i < elems.length; i++) {
-                elem = elems[i];
-                elemAttr = elem.getAttribute(attr);
-                if (elemAttr != null && elemAttr.trim() != "") {
-                    if (elemAttr.search("://") == -1 && elemAttr[0] != "#") {
-                        elem.setAttribute(attr, arg.base+elemAttr);
-                    }
-                }
-            }
-        }
-        return obj.innerHTML;
     }
 };
 dcg.displayTokens = function (arg) { //display tokens function, inputs are: arg.data, arg.obj, arg.root
