@@ -11,13 +11,15 @@ DCG basically stitches the content and the layout together then generates and re
 content.html (the main page)
 ```html
 <html>
-  <body dcg-design="path/to/design.html" dcg-base="./">
+  <body>
 
     <div dcg-obj="hello">Hello World!</div>
 
     <script src="path/to/dcg.js"></script>
     <script>
-      dcg.render();
+      dcg.render({
+        designSrc: "path/to/design.html"
+      });
     </script>
   </body>
 </html>
