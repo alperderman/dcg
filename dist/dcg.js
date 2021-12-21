@@ -78,9 +78,6 @@ dcg.renderDom = false; //for checking if the render will be on the current docum
 dcg.evalFunc = undefined; //empty function for running eval expressions
 dcg.init = function () { //function for initializing the framework
     dcg.reset();
-    if (dcg.profile.showLogs) {
-        console.log(dcg.logPrefix+dcg.version);
-    }
 };
 dcg.config = function (options) { //function for setting custom presets
     if (typeof options === 'object') {
@@ -161,6 +158,9 @@ dcg.render = function (arg) { //wrapper for renderDesign function, inputs are: a
         dcg.renderDom = false;
         if (arg.options !== null) {
             dcg.config(arg.options);
+        }
+        if (dcg.profile.showLogs) {
+            console.log(dcg.logPrefix+dcg.version);
         }
         if (arg.content == null) { //if the content and the contentSrc is null then reference the current document as the content
             if (arg.contentSrc == null) {
