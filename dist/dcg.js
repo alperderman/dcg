@@ -1,5 +1,5 @@
 /*!
-* Dynamic Content Generation (1.0.8) 2021/12/20
+* Dynamic Content Generation (1.0.9) 2021/12/21
 */
 
 //polyfills
@@ -14,9 +14,9 @@ if (!Object.values) { Object.values = function values(obj) { var res = []; for (
 if (typeof window.CustomEvent !== 'function') { window.CustomEvent = function (event, params) { params = params || {bubbles: false, cancelable: false, detail: null}; var evt = document.createEvent('CustomEvent'); evt.initCustomEvent(event, params.bubbles, params.cancelable, params.detail); return evt; }; }
 
 var dcg = {}; //main object
+dcg.version = "1.0.9"; //version number
 dcg.logPrefix = "[DCG] "; //log prefix
 dcg.default = { //default presets
-    labelDesign: "dcg-design", //design attribute: for locating the design page
     labelObj: "dcg-obj", //dynamic content attribute
     labelRaw: "dcg-raw", //static content attribute
     labelJson: "dcg-json", //json content attribute
@@ -78,6 +78,9 @@ dcg.renderDom = false; //for checking if the render will be on the current docum
 dcg.evalFunc = undefined; //empty function for running eval expressions
 dcg.init = function () { //function for initializing the framework
     dcg.reset();
+    if (dcg.profile.showLogs) {
+        console.log(dcg.logPrefix+dcg.version);
+    }
 };
 dcg.config = function (options) { //function for setting custom presets
     if (typeof options === 'object') {
@@ -149,13 +152,16 @@ dcg.watchPrintSplit = function (text) { //function for splitting and printing th
     dcg.watchPrint(text);
     dcg.watchSplit();
 };
-dcg.render = function (arg) { //wrapper for renderDesign function, inputs are: arg.content, arg.contentSrc, arg.design, arg.designSrc
+dcg.render = function (arg) { //wrapper for renderDesign function, inputs are: arg.options, arg.content, arg.contentSrc, arg.design, arg.designSrc
     var result;
     step_start();
     function step_start() { //start the render wrapper
         if (arg == null) {arg = {};}
         dcg.renderReady = false;
         dcg.renderDom = false;
+        if (arg.options !== null) {
+            dcg.config(arg.options);
+        }
         if (arg.content == null) { //if the content and the contentSrc is null then reference the current document as the content
             if (arg.contentSrc == null) {
                 dcg.renderDom = true;
@@ -191,15 +197,10 @@ dcg.render = function (arg) { //wrapper for renderDesign function, inputs are: a
         step_design(content);
     }
     function step_design(content) { //get the design
-        var design, designSrc, bodyLabelDesign;
-        if (arg.design == null) { //if the design is null then check for the external source in designSrc and design attribute
+        var design, designSrc;
+        if (arg.design == null) { //if the design is null then check for the external source in the designSrc
             if (arg.designSrc == null) {
-                bodyLabelDesign = content.body.getAttribute(dcg.profile.labelDesign);
-                if (bodyLabelDesign == null) {
-                    return;
-                } else {
-                    designSrc = bodyLabelDesign;
-                }
+                return;
             } else {
                 designSrc = arg.designSrc;
             }
@@ -222,6 +223,9 @@ dcg.render = function (arg) { //wrapper for renderDesign function, inputs are: a
             design: design,
             callback: function (render) {
                 result = render;
+                if (arg.options !== null) {
+                    dcg.reset();
+                }
             }
         });
     }
@@ -379,12 +383,16 @@ dcg.renderDesign = function (arg) { //main render function, inputs are: arg.cont
         arg.content.body.innerHTML = dcg.replaceRoot(arg.content.body.innerHTML);
         arg.content.documentElement.innerHTML = dcg.removeMarked(arg.content.documentElement);
         arg.content.body.innerHTML = dcg.replaceEscape(arg.content.body.innerHTML);
-        arg.content.body.removeAttribute(dcg.profile.labelDesign);
         dcg.renderReady = true;
         dcg.watchPrintSplit("Elements, escaped and remnants, removed!");
         step_inject();
     }
-    function step_inject() { //inject the scripts, jump to anchor and dispatch onload event
+    function step_inject() { //reload styles, inject the scripts, jump to anchor and dispatch onload event
+        var i, links = document.getElementsByTagName("link"), link;
+        for (i = 0; i < links.length;i++) {
+            link = links[i];
+            link.href = link.href;
+        }
         if (dcg.renderDom) {
             dcg.loadScripts(arg.content.body.getElementsByTagName("script"), function () {
                 dcg.watchPrintSplit("Scripts, injected!");
