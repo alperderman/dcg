@@ -5,7 +5,7 @@
   <title>DCG | Sandbox</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1, user-scalable=no, minimal-ui" />
 </head>
-<body dcg-design="design.html">
+<body>
 
   <div dcg-obj="header" dcg-json>
     {
@@ -25,7 +25,6 @@
   </div>
   <div dcg-obj="presets">
     {
-      baseAttrs: ["src", "href"],
       removeCss: false,
       cacheRender: false
     }
@@ -33,7 +32,9 @@
 
   <script src="../dist/dcg.js"></script>
   <script>
-    dcg.render();
+    dcg.render({
+      designSrc: "design.html"
+    });
   </script>
 </body>
 </html>
