@@ -401,20 +401,17 @@ dcg.renderDesign = function (arg) { //main render function, inputs are: arg.cont
                 }
                 dcg.DOMLoad();
                 step_finish();
-                if (typeof arg.callback !== 'undefined') {
-                    arg.callback(arg.content.documentElement.innerHTML);
-                }
             });
         } else {
             step_finish();
-            if (typeof arg.callback !== 'undefined') {
-                arg.callback(arg.content.documentElement.innerHTML);
-            }
         }
     }
     function step_finish() { //stop the time and print the total elapsed time
         dcg.watchStop();
         dcg.watchPrint("Render finished! Total time:", true);
+        if (typeof arg.callback !== 'undefined') {
+            arg.callback(arg.content.documentElement.innerHTML);
+        }
     }
 };
 dcg.displayTokens = function (arg) { //display tokens function, inputs are: arg.data, arg.obj, arg.root
