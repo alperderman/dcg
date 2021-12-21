@@ -400,16 +400,16 @@ dcg.renderDesign = function (arg) { //main render function, inputs are: arg.cont
                     arg.content.getElementById(window.location.hash.slice(1)).scrollIntoView();
                 }
                 dcg.DOMLoad();
+                step_finish();
                 if (typeof arg.callback !== 'undefined') {
                     arg.callback(arg.content.documentElement.innerHTML);
                 }
-                step_finish();
             });
         } else {
+            step_finish();
             if (typeof arg.callback !== 'undefined') {
                 arg.callback(arg.content.documentElement.innerHTML);
             }
-            step_finish();
         }
     }
     function step_finish() { //stop the time and print the total elapsed time
