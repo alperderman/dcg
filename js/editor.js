@@ -8,9 +8,7 @@ function runEditor(){
   }
   var options = eval('('+presets+')');
   if (design != "") {
-    dcg.config(options);
-    preview = dcg.render({content: content, design: design});
-    dcg.reset();
+    preview = dcg.render({content: content, design: design, options: options});
   } else {
     preview = "";
   }
