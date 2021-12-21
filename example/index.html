@@ -6,7 +6,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>DCG | Content</title>
   </head>
-  <body dcg-design="design.html">
+  <body>
 
     <!--basic json content definition-->
     <div dcg-obj="dynamicData" dcg-json>{"test" : "This is a variable", "2222": {"text": "123"}, "gen": "Generation", "condition": "true", "sum1": "65", "sum2": "43"}</div>
@@ -117,8 +117,12 @@
     
     <!--configuring and initiating the render-->
     <script>
-      dcg.config({showLogs: true});
-      dcg.render();
+      dcg.render({
+        designSrc: "design.html",
+        options: {
+          showLogs: true
+        }
+      });
     </script>
   </body>
 </html>
