@@ -900,10 +900,9 @@ dcg.xhr = function (url, callback, cache, method, async) { //xhr function used f
     xhr.send();
 };
 dcg.DOMLoad = function () { //imitate window onload
+    document.dispatchEvent(new CustomEvent('DOMContentLoaded'));
     window.dispatchEvent(new CustomEvent('DOMContentLoaded'));
     window.dispatchEvent(new CustomEvent('load'));
-    document.dispatchEvent(new CustomEvent('DOMContentLoaded'));
-    document.dispatchEvent(new CustomEvent('load'));
 };
 dcg.DOMEval = function (code) { //script injection function
     var script;
