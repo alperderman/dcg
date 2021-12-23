@@ -337,10 +337,8 @@ dcg.renderDesign = function (arg) { //main render function, inputs are: arg.cont
         }
         dcg.watchPrintSplit("Design is inserted to DOM and dependencies are added!");
         step_ext("Secondary external contents are loaded!", function(){
-            step_storestatic("Secondary static contents are stored!", function(){
-                step_storedynamic("Secondary dynamic contents are stored!", function(){
-                    step_insertstatic();
-                });
+            step_storedynamic("Secondary dynamic contents are stored!", function(){
+                step_insertstatic();
             });
         });
     }
