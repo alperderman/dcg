@@ -1,5 +1,5 @@
 /*!
-* Dynamic Content Generation (1.1.0) 2021/12/23
+* Dynamic Content Generation (1.1.0) 2021/12/24
 */
 
 //polyfills
@@ -460,6 +460,9 @@ dcg.displayTokens = function (arg) { //display tokens function, inputs are: arg.
             repeatAttrSplit = repeatAttr.split(" ");
             repeatAttrSplitDot = repeatAttrSplit[0].split("."); //split the dcg-repeat attribute with spaces and dots
             tokenDataArray = dcg.getRecursiveValue({arr: arg.data, keys: repeatAttrSplitDot, i: 0, thisRoot: arg.root}); //get the object or array from the data using splitted variable
+            if (tokenDataArray === false && arg.data !== dcg.dataDynamic) { //if there is no specified token inside the data then check the dcg.dataDynamic (fallback for template data)
+                tokenDataArray = dcg.getRecursiveValue({arr: dcg.dataDynamic, keys: repeatAttrSplitDot, i: 0, thisRoot: arg.root});
+            }
             if (tokenDataArray !== false) {
                 i = 0;
                 for (var key in tokenDataArray) {
@@ -506,10 +509,10 @@ dcg.displayTokens = function (arg) { //display tokens function, inputs are: arg.
                     i++;
                 }
             }
-            if (objRepeatCloneHtml != "") { //if the cloned elements are processed then insert the cloned element and remove the original element
+            if (objRepeatCloneHtml != "") { //if the cloned elements are processed then insert the cloned element
                 objRepeat.insertAdjacentHTML("afterend", objRepeatCloneHtml);
-                objRepeat.parentNode.removeChild(objRepeat);
             }
+            objRepeat.parentNode.removeChild(objRepeat); //remove the original unprocessed element
             step_repeat(); //restart the function
         }
         step_eval();
