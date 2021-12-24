@@ -356,20 +356,27 @@ dcg.renderDesign = function (arg) { //main render function, inputs are: arg.cont
         step_template();
     }
     function step_template() { //store and render the templates
-        var i, designTemplateReferences, designTemplate, designTemplateId, designTemplateRenders;
-        designTemplateReferences = dcg.getElementsByAttribute(arg.content.body, dcg.profile.labelTemplateReference);
-        for (i = 0;i < designTemplateReferences.length;i++) {
-            designTemplate = designTemplateReferences[i];
-            designTemplateId = designTemplate.getAttribute(dcg.profile.labelTemplate);
-            dcg.loadTemplate({id : designTemplateId, obj : designTemplate});
-            designTemplate.parentNode.removeChild(designTemplate);
+        temp_reference();
+        temp_render();
+        function temp_reference() {
+            var designTemplate, designTemplateId;
+            designTemplate = dcg.getElementByAttribute(arg.content.body, dcg.profile.labelTemplateReference);
+            if (designTemplate !== false) {
+                designTemplateId = designTemplate.getAttribute(dcg.profile.labelTemplate);
+                dcg.loadTemplate({id : designTemplateId, obj : designTemplate});
+                designTemplate.parentNode.removeChild(designTemplate);
+                temp_reference();
+            }
         }
-        designTemplateRenders = dcg.getElementsByAttribute(arg.content.body, dcg.profile.labelTemplateRender);
-        for (i = 0;i < designTemplateRenders.length;i++) {
-            designTemplate = designTemplateRenders[i];
-            designTemplateId = designTemplate.getAttribute(dcg.profile.labelTemplate);
-            designTemplate.insertAdjacentHTML("afterend", dcg.loadTemplate({id : designTemplateId, obj : designTemplate}).innerHTML);
-            designTemplate.parentNode.removeChild(designTemplate);
+        function temp_render() {
+            var designTemplate, designTemplateId;
+            designTemplate = dcg.getElementByAttribute(arg.content.body, dcg.profile.labelTemplateRender);
+            if (designTemplate !== false) {
+                designTemplateId = designTemplate.getAttribute(dcg.profile.labelTemplate);
+                designTemplate.insertAdjacentHTML("afterend", dcg.loadTemplate({id : designTemplateId, obj : designTemplate}).innerHTML);
+                designTemplate.parentNode.removeChild(designTemplate);
+                temp_render();
+            }
         }
         dcg.watchPrintSplit("Templates are rendered!");
         step_insertdynamic();
