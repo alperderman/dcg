@@ -57,9 +57,9 @@ dcg.keywordRoot = [
     {name: "$query", value: window.location.search},
     {name: "$hash", value: window.location.hash}
 ];
-dcg.regexTokenDelimiter = new RegExp(dcg.default.tokenOpen+"[\\s\\S]*?"+dcg.default.tokenClose, "g"); //regex for tokens
-dcg.regexEvalDelimiter = new RegExp(dcg.default.evalOpen+"[\\s\\S]*?"+dcg.default.evalClose, "g"); //regex for eval expressions
-dcg.regexEvalMultiDelimiter = new RegExp(dcg.default.evalMultiOpen+"[\\s\\S]*?"+dcg.default.evalMultiClose, "g"); //regex for multi-line eval expressions
+dcg.regexTokenDelimiter = new RegExp(dcg.default.tokenOpen+"(?!"+dcg.default.tokenEscape+")[\\s\\S]*?"+dcg.default.tokenClose, "g"); //regex for tokens
+dcg.regexEvalDelimiter = new RegExp(dcg.default.evalOpen+"(?!"+dcg.default.tokenEscape+")[\\s\\S]*?"+dcg.default.evalClose, "g"); //regex for eval expressions
+dcg.regexEvalMultiDelimiter = new RegExp(dcg.default.evalMultiOpen+"(?!"+dcg.default.tokenEscape+")[\\s\\S]*?"+dcg.default.evalMultiClose, "g"); //regex for multi-line eval expressions
 dcg.regexEscape = new RegExp("(<[^>]*?"+dcg.default.labelEscapePrefix+"[^>]*?>)", "gim"); //regex for escaped elements
 dcg.regexBody = new RegExp("<body[^>]*>((.|[\\n\\r])*)<\\/body>", "im"); //regex for matching body tag
 dcg.regexLinks = new RegExp("<link[^>]*>", "gim"); //regex for matching link tags
@@ -92,9 +92,9 @@ dcg.reset = function () { //function for resetting the presets to their default 
     dcg.reconstruct();
 };
 dcg.reconstruct = function () { //function for reconstructing the presets
-    dcg.regexTokenDelimiter = new RegExp(dcg.profile.tokenOpen+"[\\s\\S]*?"+dcg.profile.tokenClose, "g");
-    dcg.regexEvalDelimiter = new RegExp(dcg.profile.evalOpen+"[\\s\\S]*?"+dcg.profile.evalClose, "g");
-    dcg.regexEvalMultiDelimiter = new RegExp(dcg.profile.evalMultiOpen+"[\\s\\S]*?"+dcg.profile.evalMultiClose, "g");
+    dcg.regexTokenDelimiter = new RegExp(dcg.profile.tokenOpen+"(?!"+dcg.profile.tokenEscape+")[\\s\\S]*?"+dcg.profile.tokenClose, "g");
+    dcg.regexEvalDelimiter = new RegExp(dcg.profile.evalOpen+"(?!"+dcg.profile.tokenEscape+")[\\s\\S]*?"+dcg.profile.evalClose, "g");
+    dcg.regexEvalMultiDelimiter = new RegExp(dcg.profile.evalMultiOpen+"(?!"+dcg.profile.tokenEscape+")[\\s\\S]*?"+dcg.profile.evalMultiClose, "g");
     dcg.regexEscape = new RegExp("(<[^>]*?"+dcg.profile.labelEscapePrefix+"[^>]*?>)", "gim");
     dcg.keywordRoot = [
         {name: "$host", value: window.location.protocol + '//' + window.location.host},
@@ -252,6 +252,7 @@ dcg.renderDesign = function (arg) { //main render function, inputs are: arg.cont
             dcg.watchPrintSplit("Content styles are marked as remnants!");
         }
         step_ext("Primary external contents are loaded!", function(){
+            arg.content.body.innerHTML = dcg.replaceRoot(arg.content.body.innerHTML);
             step_storestatic("Primary static contents are stored!", function(){
                 step_storedynamic("Primary dynamic contents are stored!", function(){
                     step_dependency();
@@ -337,6 +338,7 @@ dcg.renderDesign = function (arg) { //main render function, inputs are: arg.cont
         }
         dcg.watchPrintSplit("Design is inserted to DOM and dependencies are added!");
         step_ext("Secondary external contents are loaded!", function(){
+            arg.content.body.innerHTML = dcg.replaceRoot(arg.content.body.innerHTML);
             step_storedynamic("Secondary dynamic contents are stored!", function(){
                 step_insertstatic();
             });
@@ -386,10 +388,10 @@ dcg.renderDesign = function (arg) { //main render function, inputs are: arg.cont
         dcg.watchPrintSplit("Dynamic contents are inserted!");
         step_escape();
     }
-    function step_escape() { //escape the elements, remove the remnants and replace root tokens
-        arg.content.body.innerHTML = dcg.replaceRoot(arg.content.body.innerHTML);
-        arg.content.documentElement.innerHTML = dcg.removeMarked(arg.content.documentElement);
+    function step_escape() { //remove the remnants and escape the elements and tokens
+        arg.content.body.innerHTML = dcg.replaceEscapeToken(arg.content.body.innerHTML);
         arg.content.body.innerHTML = dcg.replaceEscape(arg.content.body.innerHTML);
+        arg.content.documentElement.innerHTML = dcg.removeMarked(arg.content.documentElement);
         dcg.renderReady = true;
         dcg.watchPrintSplit("Elements are escaped and remnants are removed!");
         step_inject();
@@ -439,21 +441,17 @@ dcg.displayTokens = function (arg) { //display tokens function, inputs are: arg.
             token = tokens[i];
             tokenPure = token.substring(dcg.profile.tokenOpen.length, token.length-dcg.profile.tokenClose.length).toLowerCase(); //remove the token delimiters
             tokenPureSplit = tokenPure.split(".");
-            if(!escape_token(tokenPure)) {
-                tokenData = dcg.getRecursiveValue({arr: arg.data, keys: tokenPureSplit, i: 0, thisRoot: arg.root}); //split the token using dots and recursively get the value from the data
-                if (tokenData !== false) {
-                    if (dcg.isElement(tokenData)) { //if the value is an html element then run the displayTokens function inside it and set the root relatively
-                        tokenRoot = Object.values(dcg.mergeDeep(tokenPureSplit));
-                        tokenRoot.pop();
-                        arg.obj.innerHTML = dcg.replaceAll(arg.obj.innerHTML, token, dcg.displayTokens({obj: tokenData.cloneNode(true), root: tokenRoot}).innerHTML, 'g');
-                    } else if (typeof tokenData === 'string') { //if the value is string, replace the token using regex
-                        arg.obj.innerHTML = dcg.replaceAll(arg.obj.innerHTML, token, tokenData, 'g');
-                    } else if (typeof tokenData === 'object') { //if the value is an object, stringify it
-                        arg.obj.innerHTML = dcg.replaceAll(arg.obj.innerHTML, token, dcg.encodeHtml(JSON.stringify(tokenData)), 'g');
-                    }
+            tokenData = dcg.getRecursiveValue({arr: arg.data, keys: tokenPureSplit, i: 0, thisRoot: arg.root}); //split the token using dots and recursively get the value from the data
+            if (tokenData !== false) {
+                if (dcg.isElement(tokenData)) { //if the value is an html element then run the displayTokens function inside it and set the root relatively
+                    tokenRoot = Object.values(dcg.mergeDeep(tokenPureSplit));
+                    tokenRoot.pop();
+                    arg.obj.innerHTML = dcg.replaceAll(arg.obj.innerHTML, token, dcg.displayTokens({obj: tokenData.cloneNode(true), root: tokenRoot}).innerHTML, 'g');
+                } else if (typeof tokenData === 'string') { //if the value is string, replace the token using regex
+                    arg.obj.innerHTML = dcg.replaceAll(arg.obj.innerHTML, token, tokenData, 'g');
+                } else if (typeof tokenData === 'object') { //if the value is an object, stringify it
+                    arg.obj.innerHTML = dcg.replaceAll(arg.obj.innerHTML, token, dcg.encodeHtml(JSON.stringify(tokenData)), 'g');
                 }
-            } else {
-                arg.obj.innerHTML = dcg.replaceAll(arg.obj.innerHTML, token, token.replace(dcg.profile.tokenEscape, ''), 'g');
             }
         }
         step_repeat();
@@ -493,23 +491,19 @@ dcg.displayTokens = function (arg) { //display tokens function, inputs are: arg.
                         token = tokens[ii];
                         tokenPure = token.substring(dcg.profile.tokenOpen.length, token.length-dcg.profile.tokenClose.length).toLowerCase(); //remove the token delimiters
                         tokenPureSplit = tokenPure.split(".");
-                        if (!escape_token(tokenPure)) {
-                            if (tokenPureSplit[0] == repeatAttrSplit[2]) { //check if the alias defined inside the token is same as the alias on the dcg-repeat attribute
-                                tokenPureSplit.shift(); //remove the alias since we only need the literal definitions
-                                tokenData = dcg.getRecursiveValue({arr: tokenDataArray[key], keys: tokenPureSplit, i: 0, thisKey: key, thisIndex: i, thisRoot: arg.root}); //split the token using dots and recursively get the value from the data
-                                if (tokenData !== false) {
-                                    if (dcg.isElement(tokenData)) { //if the value is an html element then run the displayTokens function inside it and set the root relatively
-                                        tokenRoot = repeatAttrSplit[0]+"."+key;
-                                        objRepeatClone.innerHTML = dcg.replaceAll(objRepeatClone.innerHTML, token, dcg.displayTokens({obj: tokenData.cloneNode(true), root: tokenRoot}).innerHTML, 'g');
-                                    } else if (typeof tokenData === 'string') { //if the value is string, replace the token using regex
-                                        objRepeatClone.innerHTML = dcg.replaceAll(objRepeatClone.innerHTML, token, tokenData, 'g');
-                                    } else if (typeof tokenData === 'object') { //if the value is an object, stringify it
-                                        objRepeatClone.innerHTML = dcg.replaceAll(objRepeatClone.innerHTML, token, dcg.encodeHtml(JSON.stringify(tokenData)), 'g');
-                                    }
+                        if (tokenPureSplit[0] == repeatAttrSplit[2]) { //check if the alias defined inside the token is same as the alias on the dcg-repeat attribute
+                            tokenPureSplit.shift(); //remove the alias since we only need the literal definitions
+                            tokenData = dcg.getRecursiveValue({arr: tokenDataArray[key], keys: tokenPureSplit, i: 0, thisKey: key, thisIndex: i, thisRoot: arg.root}); //split the token using dots and recursively get the value from the data
+                            if (tokenData !== false) {
+                                if (dcg.isElement(tokenData)) { //if the value is an html element then run the displayTokens function inside it and set the root relatively
+                                    tokenRoot = repeatAttrSplit[0]+"."+key;
+                                    objRepeatClone.innerHTML = dcg.replaceAll(objRepeatClone.innerHTML, token, dcg.displayTokens({obj: tokenData.cloneNode(true), root: tokenRoot}).innerHTML, 'g');
+                                } else if (typeof tokenData === 'string') { //if the value is string, replace the token using regex
+                                    objRepeatClone.innerHTML = dcg.replaceAll(objRepeatClone.innerHTML, token, tokenData, 'g');
+                                } else if (typeof tokenData === 'object') { //if the value is an object, stringify it
+                                    objRepeatClone.innerHTML = dcg.replaceAll(objRepeatClone.innerHTML, token, dcg.encodeHtml(JSON.stringify(tokenData)), 'g');
                                 }
                             }
-                        } else {
-                            arg.obj.innerHTML = dcg.replaceAll(arg.obj.innerHTML, token, token.replace(dcg.profile.tokenEscape, ''), 'g');
                         }
                     }
                     objRepeatCloneHtml += objRepeatClone.innerHTML; //expand the variable with the clone element that we have processed, this will be done in every loop and processed elements will be inserted after the whole iteration completes
@@ -530,16 +524,11 @@ dcg.displayTokens = function (arg) { //display tokens function, inputs are: arg.
         for (i = 0;i < evalExps.length;i++) { //iterate through eval expressions
             evalExp = evalExps[i];
             evalExpPure = dcg.decodeHtml(evalExp.substring(dcg.profile.evalOpen.length, evalExp.length-dcg.profile.evalClose.length)); //remove the eval expression delimiters
-            if (!escape_token(evalExpPure)) {
-                if (dcg.isValidJs("dcg.evalFunc = function () {return "+evalExpPure+";}") && evalExpPure.trim() != "") { //if input is valid then evaluate the input and replace it
-                    window.eval("dcg.evalFunc = function () {return "+evalExpPure+";}");
-                    evalExpData = dcg.evalFunc();
-                    arg.obj.innerHTML = dcg.replaceAll(arg.obj.innerHTML, evalExp, evalExpData, 'g');
-                }
-            } else {
-                arg.obj.innerHTML = dcg.replaceAll(arg.obj.innerHTML, evalExp, evalExp.replace(dcg.profile.tokenEscape, ''), 'g');
+            if (dcg.isValidJs("dcg.evalFunc = function () {return "+evalExpPure+";}") && evalExpPure.trim() != "") { //if input is valid then evaluate the input and replace it
+                window.eval("dcg.evalFunc = function () {return "+evalExpPure+";}");
+                evalExpData = dcg.evalFunc();
+                arg.obj.innerHTML = dcg.replaceAll(arg.obj.innerHTML, evalExp, evalExpData, 'g');
             }
-            
         }
         step_multieval();
     }
@@ -549,14 +538,10 @@ dcg.displayTokens = function (arg) { //display tokens function, inputs are: arg.
         for (i = 0;i < evalExps.length;i++) { //iterate through multi-line eval expressions
             evalExp = evalExps[i];
             evalExpPure = dcg.decodeHtml(evalExp.substring(dcg.profile.evalMultiOpen.length, evalExp.length-dcg.profile.evalMultiClose.length)); //remove the multi-line eval expression delimiters
-            if (!escape_token(evalExpPure)) {
-                if (dcg.isValidJs("dcg.evalFunc = function () {"+evalExpPure+"}") && evalExpPure.trim() != "") { //if input is valid then evaluate the input and replace it
-                    window.eval("dcg.evalFunc = function () {"+evalExpPure+"}");
-                    evalExpData = dcg.evalFunc();
-                    arg.obj.innerHTML = dcg.replaceAll(arg.obj.innerHTML, evalExp, evalExpData, 'g');
-                }
-            } else {
-                arg.obj.innerHTML = dcg.replaceAll(arg.obj.innerHTML, evalExp, evalExp.replace(dcg.profile.tokenEscape, ''), 'g');
+            if (dcg.isValidJs("dcg.evalFunc = function () {"+evalExpPure+"}") && evalExpPure.trim() != "") { //if input is valid then evaluate the input and replace it
+                window.eval("dcg.evalFunc = function () {"+evalExpPure+"}");
+                evalExpData = dcg.evalFunc();
+                arg.obj.innerHTML = dcg.replaceAll(arg.obj.innerHTML, evalExp, evalExpData, 'g');
             }
         }
         step_if();
@@ -574,13 +559,6 @@ dcg.displayTokens = function (arg) { //display tokens function, inputs are: arg.
             objIf.parentNode.removeChild(objIf);
             step_if(); //restart the function
         }
-    }
-    function escape_token(tokenPure) {
-        var result = false;
-        if (tokenPure.substring(0,dcg.profile.tokenEscape.length) == dcg.profile.tokenEscape) {
-            result = true;
-        }
-        return result;
     }
     return arg.obj; //return the final element
 };
@@ -610,9 +588,16 @@ dcg.replaceEscape = function (html) { //escape elements function
     }
     return newHtml;
 };
-dcg.replaceRoot = function (html, name) { //root keywords function
+dcg.replaceEscapeToken = function (html) { //escape tokens function
+    var newHtml = html;
+    if (html == null) {return;}
+    newHtml = dcg.replaceAll(newHtml, dcg.profile.tokenOpen+dcg.profile.tokenEscape, dcg.profile.tokenOpen, 'gim');
+    newHtml = dcg.replaceAll(newHtml, dcg.profile.evalOpen+dcg.profile.tokenEscape, dcg.profile.evalOpen, 'gim');
+    newHtml = dcg.replaceAll(newHtml, dcg.profile.evalMultiOpen+dcg.profile.tokenEscape, dcg.profile.evalMultiOpen, 'gim');
+    return newHtml;
+};
+dcg.replaceRoot = function (html, name) { //root tokens function
     var i, newHtml = html, root;
-    dcg.reconstruct();
     if (html == null) {return;}
     for (i = 0;i < dcg.keywordRoot.length;i++) {
         root = dcg.keywordRoot[i];
