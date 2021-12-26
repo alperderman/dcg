@@ -389,9 +389,9 @@ dcg.renderDesign = function (arg) { //main render function, inputs are: arg.cont
         step_escape();
     }
     function step_escape() { //remove the remnants and escape the elements and tokens
+        arg.content.documentElement.innerHTML = dcg.removeMarked(arg.content.documentElement); //keep this at the top because of the DOM modification priority (solution to the IE11 image problem)
         arg.content.body.innerHTML = dcg.replaceEscapeToken(arg.content.body.innerHTML);
         arg.content.body.innerHTML = dcg.replaceEscape(arg.content.body.innerHTML);
-        arg.content.documentElement.innerHTML = dcg.removeMarked(arg.content.documentElement);
         dcg.renderReady = true;
         dcg.watchPrintSplit("Elements are escaped and remnants are removed!");
         step_inject();
