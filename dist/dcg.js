@@ -1,5 +1,5 @@
 /*!
-* Dynamic Content Generation (1.1.0) 2021/12/24
+* Dynamic Content Generation (1.1.1) 2021/12/30
 */
 
 //polyfills
@@ -14,7 +14,7 @@ if (!Object.values) { Object.values = function values(obj) { var res = []; for (
 if (typeof window.CustomEvent !== 'function') { window.CustomEvent = function (event, params) { params = params || {bubbles: false, cancelable: false, detail: null}; var evt = document.createEvent('CustomEvent'); evt.initCustomEvent(event, params.bubbles, params.cancelable, params.detail); return evt; }; }
 
 var dcg = {}; //main object
-dcg.version = "1.1.0"; //version number
+dcg.version = "1.1.1"; //version number
 dcg.logPrefix = "[DCG] "; //log prefix
 dcg.default = { //default presets
     labelObj: "dcg-obj", //dynamic content attribute
@@ -149,7 +149,7 @@ dcg.watchPrintSplit = function (text) { //function for splitting and printing th
     dcg.watchPrint(text);
     dcg.watchSplit();
 };
-dcg.render = function (arg) { //wrapper for renderDesign function, inputs are: arg.options, arg.content, arg.contentSrc, arg.design, arg.designSrc
+dcg.render = function (arg) { //wrapper for renderDesign function, inputs are: arg.options, arg.content, arg.contentSrc, arg.design, arg.designSrc, arg.after
     var result;
     step_start();
     function step_start() { //start the render wrapper
@@ -221,6 +221,7 @@ dcg.render = function (arg) { //wrapper for renderDesign function, inputs are: a
         dcg.renderDesign({
             content: content,
             design: design,
+            after: after,
             callback: function (render) {
                 result = render;
                 if (arg.options !== null) {
@@ -231,7 +232,7 @@ dcg.render = function (arg) { //wrapper for renderDesign function, inputs are: a
     }
     return result;
 };
-dcg.renderDesign = function (arg) { //main render function, inputs are: arg.content, arg.design, arg.callback
+dcg.renderDesign = function (arg) { //main render function, inputs are: arg.content, arg.design, arg.callback, arg.after
     step_start();
     function step_start() { //start the time and render
         dcg.watchStart();
@@ -381,7 +382,12 @@ dcg.renderDesign = function (arg) { //main render function, inputs are: arg.cont
             }
         }
         dcg.watchPrintSplit("Templates are rendered!");
-        step_insertdynamic();
+        step_ext("Tertiary external contents are loaded!", function(){
+            arg.content.body.innerHTML = dcg.replaceRoot(arg.content.body.innerHTML);
+            step_storedynamic("Tertiary dynamic contents are stored!", function(){
+                step_insertdynamic();
+            });
+        });
     }
     function step_insertdynamic() { //insert the dynamic contents and display the tokens
         arg.content.body = dcg.displayTokens({obj: arg.content.body});
@@ -420,6 +426,9 @@ dcg.renderDesign = function (arg) { //main render function, inputs are: arg.cont
         dcg.watchPrint("Render is finished! Total time:", true);
         if (typeof arg.callback !== 'undefined') {
             arg.callback(arg.content.documentElement.innerHTML);
+        }
+        if (typeof arg.after !== 'undefined') {
+            arg.after(arg.content.documentElement.innerHTML);
         }
     }
 };
