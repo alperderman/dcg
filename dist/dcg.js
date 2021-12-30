@@ -221,7 +221,7 @@ dcg.render = function (arg) { //wrapper for renderDesign function, inputs are: a
         dcg.renderDesign({
             content: content,
             design: design,
-            after: after,
+            after: arg.after,
             callback: function (render) {
                 result = render;
                 if (arg.options !== null) {
