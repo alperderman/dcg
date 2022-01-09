@@ -1,5 +1,5 @@
 /*!
-* Dynamic Content Generation (1.1.1) 2021/12/30
+* Dynamic Content Generation (1.1.2) 2022/01/09
 */
 
 //polyfills
@@ -14,20 +14,19 @@ if (!Object.values) { Object.values = function values(obj) { var res = []; for (
 if (typeof window.CustomEvent !== 'function') { window.CustomEvent = function (event, params) { params = params || {bubbles: false, cancelable: false, detail: null}; var evt = document.createEvent('CustomEvent'); evt.initCustomEvent(event, params.bubbles, params.cancelable, params.detail); return evt; }; }
 
 var dcg = {}; //main object
-dcg.version = "1.1.1"; //version number
+dcg.version = "1.1.2"; //version number
 dcg.logPrefix = "[DCG] "; //log prefix
 dcg.default = { //default presets
     labelObj: "dcg-obj", //dynamic content attribute
-    labelRaw: "dcg-raw", //static content attribute
     labelJson: "dcg-json", //json content attribute
-    labelXml: "dcg-xml", //xml content attribute
     labelHtml: "dcg-html", //html content attribute
     labelTemplate: "dcg-temp", //temp attribute: for indicating templates
     labelTemplateData: "dcg-data", //data attribute: for passing raw json data to the template or binding the template with dynamic content
     labelTemplateReference: "dcg-tref", //template reference attribute: for loading template for future uses
     labelTemplateRender: "dcg-tren", //template render attribute: for rendering the templates that has been referenced before
-    labelTemplatePrefix: "tref_", //prefix for indicating template references inside the dataStatic
     labelSource: "dcg-src", //external source attribute: for fetching external contents or external templates
+    labelScreen: "dcg-screen", //screen block attribute: for indicating the screen block element
+    elemScreen: "<div style='position:fixed;top:0;left:0;z-index:99;width:100vw;height:100vh;background-color:#ffffff;'></div>", //screen block element
     labelRepeat: "dcg-repeat", //repeat attribute: for iterating json contents on design
     labelIf: "dcg-if", //if attribute: for making conditional rendering
     labelRemove: "dcg-remove", //remove attribute: for removing elements from the content
@@ -41,7 +40,8 @@ dcg.default = { //default presets
     evalMultiClose: "%!}", //closing delimiter for multi-line eval expressions
     cacheRender: false, //for caching render change it to true if its going to be used in production
     showLogs: false, //for showing the render logs
-    removeCss: false //for removing the styles of the content page, if set to true styles will not be carried over rendered page
+    screenBlock: false, //for blocking the screen with the screen block element
+    removeStyles: false //for removing the styles of the content page, if set to true styles will not be carried over rendered page
 };
 //keywords to be used inside the tokens
 dcg.keywordObject = {
@@ -66,9 +66,9 @@ dcg.regexLinks = new RegExp("<link[^>]*>", "gim"); //regex for matching link tag
 dcg.regexStyles = new RegExp("<style[^>]*>([\\s\\S]*?)<\\/style>", "gim"); //regex for style tags
 dcg.regexScripts = new RegExp("<script[^>]*>([\\s\\S]*?)<\\/script>", "gim"); //regex for script tags
 dcg.profile = {}; //preset profile for assigning custom presets
-dcg.dataDynamic = {}; //for storing the dynamic contents, they are nestable and usable as tokens (xml and json)
-dcg.dataStatic = {}; //for storing the static contents (raw html and template references)
-//time variables for calculating the elapsed time
+dcg.dataDynamic = {}; //for storing the dynamic contents, they are usable as tokens (html, json and text)
+dcg.dataTemplate = {}; //for storing the template references
+//variables for calculating the elapsed time
 dcg.watchTimeStart = 0;
 dcg.watchTimeStop = 0;
 dcg.watchTimeTotal = 0;
@@ -159,6 +159,9 @@ dcg.render = function (arg) { //wrapper for renderDesign function, inputs are: a
         if (arg.options !== null) {
             dcg.config(arg.options);
         }
+        if (dcg.profile.screenBlock) {
+            screen_block();
+        }
         if (dcg.profile.showLogs) {
             console.log(dcg.logPrefix+"Version: "+dcg.version);
         }
@@ -177,6 +180,16 @@ dcg.render = function (arg) { //wrapper for renderDesign function, inputs are: a
             }
         } else {
             step_content(arg.content);
+        }
+    }
+    function screen_block() {
+        var elScreen, elNewScreen;
+        elScreen = dcg.getElementByAttribute(document.body, dcg.profile.labelScreen);
+        if (elScreen === false) {
+            elNewScreen = document.createElement("dcg");
+            elNewScreen.setAttribute(dcg.profile.labelScreen, "");
+            elNewScreen.innerHTML = dcg.profile.elemScreen;
+            document.body.appendChild(elNewScreen);
         }
     }
     function step_content(doc) { //get the content
@@ -241,7 +254,7 @@ dcg.renderDesign = function (arg) { //main render function, inputs are: arg.cont
     }
     function step_markcss() { //find the styles from the content and mark them with labelRemove
         var i, contentStyle, contentCss;
-        if (dcg.profile.removeCss) {
+        if (dcg.profile.removeStyles) {
             contentStyle = arg.content.getElementsByTagName('style');
             contentCss = dcg.getElementsByAttribute(arg.content.documentElement, "rel", "stylesheet");
             for (i = 0; i < contentStyle.length; i++) {
@@ -252,14 +265,7 @@ dcg.renderDesign = function (arg) { //main render function, inputs are: arg.cont
             }
             dcg.watchPrintSplit("Content styles are marked as remnants!");
         }
-        step_ext("Primary external contents are loaded!", function(){
-            arg.content.body.innerHTML = dcg.replaceRoot(arg.content.body.innerHTML);
-            step_storestatic("Primary static contents are stored!", function(){
-                step_storedynamic("Primary dynamic contents are stored!", function(){
-                    step_dependency();
-                });
-            });
-        });
+        step_dependency();
     }
     function step_ext(print, callback) { //load the external contents and then continue to render
         var externalContents;
@@ -269,18 +275,6 @@ dcg.renderDesign = function (arg) { //main render function, inputs are: arg.cont
             callback();
         });
     }
-    function step_storestatic(print, callback) { //iterate through the raw contents and store them
-        var i, staticContents, staticContent, contentId;
-        staticContents = dcg.getElementsByAttribute(arg.content.body, dcg.profile.labelRaw);
-        for (i = 0; i < staticContents.length; i++) {
-            staticContent = staticContents[i];
-            contentId = staticContent.getAttribute(dcg.profile.labelRaw);
-            dcg.dataStatic[contentId] = staticContent.innerHTML;
-            staticContent.parentNode.removeChild(staticContent);
-        }
-        dcg.watchPrintSplit(print);
-        callback();
-    }
     function step_storedynamic(print, callback) { //iterate through the dynamic contents and store them
         var i, dynamicContents, dynamicContent, contentId, dynamicContentParse, dynamicContentNested;
         dynamicContents = dcg.getElementsByAttribute(arg.content.body, dcg.profile.labelObj);
@@ -289,8 +283,6 @@ dcg.renderDesign = function (arg) { //main render function, inputs are: arg.cont
             contentId = dynamicContent.getAttribute(dcg.profile.labelObj);
             if (dynamicContent.hasAttribute(dcg.profile.labelJson)) { //if it has labelJson attribute, parse json
                 dynamicContentParse = JSON.parse(dynamicContent.innerHTML);
-            } else if (dynamicContent.hasAttribute(dcg.profile.labelXml)) { //if it has labelXml attribute, parse xml
-                dynamicContentParse = dcg.parseXML(dynamicContent);
             } else if (dynamicContent.hasAttribute(dcg.profile.labelHtml)) { //if it has labelHtml attribute, clone the node
                 dynamicContentParse = dynamicContent.cloneNode(true);
             } else { //if it doesn't have labels, store it as it is
@@ -308,9 +300,9 @@ dcg.renderDesign = function (arg) { //main render function, inputs are: arg.cont
         arg.design = dcg.replaceRoot(arg.design); //replace the root tokens
         if ((/\<\/body\>/).test(arg.design)) { //if the design has body then insert only the body with its attributes
             arg.content.documentElement.innerHTML = arg.content.documentElement.innerHTML.replace("<body", "<body"+arg.design.match("<body" + "(.*)" + ">")[1]);
-            arg.content.body.innerHTML = arg.design.match(dcg.regexBody)[1];
+            arg.content.body.innerHTML += arg.design.match(dcg.regexBody)[1];
         } else { //if it doesn't then insert it directly
-            arg.content.body.innerHTML = arg.design;
+            arg.content.body.innerHTML += arg.design;
         }
         //get the link elements from the design and insert them
         designLinks = arg.design.match(dcg.regexLinks);
@@ -338,25 +330,12 @@ dcg.renderDesign = function (arg) { //main render function, inputs are: arg.cont
             }
         }
         dcg.watchPrintSplit("Design is inserted to DOM and dependencies are added!");
-        step_ext("Secondary external contents are loaded!", function(){
+        step_ext("Primary external contents are loaded!", function(){
             arg.content.body.innerHTML = dcg.replaceRoot(arg.content.body.innerHTML);
-            step_storedynamic("Secondary dynamic contents are stored!", function(){
-                step_insertstatic();
+            step_storedynamic("Primary dynamic contents are stored!", function(){
+                step_template();
             });
         });
-    }
-    function step_insertstatic() { //insert the raw contents
-        var i, contentId, rawTargets, rawTarget;
-        for (contentId in dcg.dataStatic) {
-            rawTargets = dcg.getElementsByAttribute(arg.content.body, dcg.profile.labelRaw, contentId);
-            for (i = 0; i < rawTargets.length; i++) {
-                rawTarget = rawTargets[i];
-                rawTarget.insertAdjacentHTML("afterend", dcg.dataStatic[contentId]);
-                rawTarget.parentNode.removeChild(rawTarget);
-            }
-        }
-        dcg.watchPrintSplit("Static contents are inserted!");
-        step_template();
     }
     function step_template() { //store and render the templates
         temp_reference();
@@ -382,9 +361,9 @@ dcg.renderDesign = function (arg) { //main render function, inputs are: arg.cont
             }
         }
         dcg.watchPrintSplit("Templates are rendered!");
-        step_ext("Tertiary external contents are loaded!", function(){
+        step_ext("Secondary external contents are loaded!", function(){
             arg.content.body.innerHTML = dcg.replaceRoot(arg.content.body.innerHTML);
-            step_storedynamic("Tertiary dynamic contents are stored!", function(){
+            step_storedynamic("Secondary dynamic contents are stored!", function(){
                 step_insertdynamic();
             });
         });
@@ -422,8 +401,15 @@ dcg.renderDesign = function (arg) { //main render function, inputs are: arg.cont
         }
     }
     function step_finish() { //stop the time and print the total elapsed time
+        var elScreen;
         dcg.watchStop();
         dcg.watchPrint("Render is finished! Total time:", true);
+        if (dcg.profile.screenBlock) {
+            elScreen = dcg.getElementByAttribute(document.body, dcg.profile.labelScreen);
+            if (elScreen !== false) {
+                elScreen.parentNode.removeChild(elScreen);
+            }
+        }
         if (typeof arg.callback !== 'undefined') {
             arg.callback(arg.content.documentElement.innerHTML);
         }
@@ -823,11 +809,11 @@ dcg.loadTemplate = function (arg) { //load template function, inputs are: arg.id
     return objClone;
     function init_template(id, obj) { //load template function
         var template;
-        if (typeof obj === 'undefined' || dcg.dataStatic.hasOwnProperty(dcg.profile.labelTemplatePrefix+id)) { //check if template's id exists on the stored templates or obj is not defined
-            template = dcg.dataStatic[dcg.profile.labelTemplatePrefix+id];
+        if (typeof obj === 'undefined' || dcg.dataTemplate.hasOwnProperty(id)) { //check if template's id exists on the stored templates or obj is not defined
+            template = dcg.dataTemplate[id];
         } else { //if obj is defined and template id doesn't exist then store this new template with its id
             template = obj.cloneNode(true);
-            dcg.dataStatic[dcg.profile.labelTemplatePrefix+id] = template;
+            dcg.dataTemplate[id] = template;
         }
         return template; //return the template
     }
@@ -876,9 +862,6 @@ dcg.loadScripts = function (node, callback, i) { //inject scripts from specified
             callback();
         }
     }
-};
-dcg.parseXML = function (m, p) { //convert xml elements to object
-    var f=1,o=2,d=3,n=4,j=7,c=8,h=9,l,b,a,k={},g=[];if(!p){p={}}if(typeof p==='string'){p={find:p}}p.xmlns=p.xmlns||"*";if(p.parse!="function"){p.parse=e}function e(i){return i.split(":").pop().replace(/^ows_/,"").replace(/[^a-z,A-Z,0-9]/g,"")}switch(m.nodeType){case h:a=(!p.find)?m.childNodes:(m.getElementsByTagNameNS)?m.getElementsByTagNameNS(p.xmlns,p.find.split(":").pop()):m.getElementsByTagName(p.find);for(l=0;l<a.length;l++){k=dcg.parseXML(a[l]);if(k){g.push(k)}}k=(g.length&&g.length==1)?g[0]:g;break;case f:if(m.attributes.length==0&&m.childNodes.length==1&&m.childNodes.item(0).nodeValue){k=m.childNodes.item(0).nodeValue}for(l=0;l<m.attributes.length;l++){b=p.parse(m.attributes.item(l).nodeName);k[b]=m.attributes.item(l).nodeValue}for(l=0;l<m.childNodes.length;l++){if(m.childNodes.item(l).nodeType!=d){b=p.parse(m.childNodes.item(l).nodeName);if(typeof k[b]==='undefined'){k[b]=dcg.parseXML(m.childNodes.item(l))}else{if(typeof k[b].push==='undefined'){k[b]=[k[b]]}k[b].push(dcg.parseXML(m.childNodes.item(l)))}}}break;case n:k="<![CDATA["+m.nodeValue+"]]>";break;case d:k=m.nodeValue;break;case c:k="";break;default:k=null}return k
 };
 dcg.xhr = function (url, callback, cache, method, async) { //xhr function used for fetching external contents, scripts and templates
     if (cache == null) {cache = dcg.profile.cacheRender;}
