@@ -7,6 +7,8 @@
     <title>DCG | Content</title>
   </head>
   <body>
+    <!--custom screen block definition-->
+    <div style='position:fixed;top:0;left:0;z-index:99;width:100vw;height:100vh;background-color:#ffffff;' dcg-screen>Loading...</div>
 
     <!--basic json content definition-->
     <div dcg-obj="dynamicData" dcg-json>{"test" : "This is a variable", "2222": {"text": "123"}, "gen": "Generation", "condition": "true", "sum1": "65", "sum2": "43"}</div>
@@ -19,17 +21,15 @@
       <a dcg:href="" dcg:custom="customtext">Dynamic Content {{dynamicData.gen}}</a>
     </div>
     
-    <!--expanding the dynamic content with different definitions of xml-->
-    <div dcg-obj="dynamicData.navbar" dcg-xml>
-      <menu id="menu1" title="Home" href="#home"></menu>
-      <menu>
-        <id>menu2</id>
-        <title>About</title>
-        <href>#about</href>
-      </menu>
-      <menu id="menu3" href="#contact">
-        <title>Contact</title>
-      </menu>
+    <!--expanding the dynamic content with navbar-->
+    <div dcg-obj="dynamicData.navbar" dcg-json>
+      {
+        "menu":[
+          {"id":"menu1", "title":"Home", "href":"#home"},
+          {"id":"menu2", "title":"About", "href":"#about"},
+          {"id":"menu3", "title":"Contact", "href":"#contact"}
+        ]
+      }
     </div>
 
     <!--multiple json objects in a multi-dimensional form-->
@@ -62,51 +62,11 @@
     
     <div dcg-obj="foobar" dcg-json>{"foo": "bars"}</div>
 
-    <!--raw html content-->
-    <div dcg-raw="rawHtml">
-      <h2>Raw HTML</h2>
-      <p>This paragraph is written on index.html</p>
-      <h3>Render Priority</h3>
-      <ol>
-        <li>Fetching external contents</li>
-        <li>Storing static contents</li>
-        <li>Storing dynamic contents</li>
-        <li>Rendering the root tokens</li>
-        <li>Changing the dependency paths with base path</li>
-        <li>Inserting the dependencies from the design</li>
-        <li>Fetching external templates</li>
-        <li>Inserting stored static contents</li>
-        <li>Storing referenced templates</li>
-        <li>Inserting stored templates</li>
-        <li>Inserting stored dynamic contents, displaying tokens</li>
-        <li>Replacing eval expressions</li>
-        <li>Conditional rendering</li>
-        <li>Rendering the root tokens again</li>
-        <li>Changing the anchor and image paths with base path</li>
-        <li>Replacing custom attributes</li>
-        <li>Jumping to anchor</li>
-        <li>Injecting scripts inside the design and dispatching the <code>onload</code> event</li>
-      </ol>
-    </div>
-
-    <!--static raw html content that it will be referenced as a template on design.html with using tokens from the previously defined dynamic content (this definition works because static content's render priority is higher than dynamic content)-->
-    <div dcg-raw="templateHtml">
-      <div test="{{base.Color}}" style="color:white;background-color:{{base.Color}};width:100px;height:100px;">{{base.Color}} - {{foo}}</div>
-    </div>
-
     <!--you can also expand dynamic contents with raw html, the only difference is the render priority is same as the dynamic contents so you cannot use tokens inside it-->
     <div dcg-obj="dynamicData.nestedHtml">
       <p>Testing nested HTML elements inside JSON</p>
     </div>
 
-    <!--raw html content with dcg-repeat, this will also be referenced as a template on design.html-->
-    <div dcg-raw="templateHtml2">
-      <div style="background:crimson;color:white;width:100px;height:100px;">
-        <div dcg-repeat="fruits as fruit">
-          <a>{{fruit.name}} - {{fruit.color}}</a><br>
-        </div>
-      </div>
-    </div>
 
     <!--external json content-->
     <div dcg-obj="exRate" dcg-json>
@@ -120,7 +80,8 @@
       dcg.render({
         designSrc: "design.html",
         options: {
-          showLogs: true
+          showLogs: true,
+          screenBlock: true
         }
       });
     </script>

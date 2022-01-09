@@ -28,10 +28,6 @@
         <!--inserting a dynamic content (token) inside an escaped element-->
         <dcg:h1>{{htmlTitle}}</dcg:h1>
 
-        <!--inserting a html content-->
-        <dcg dcg-raw="rawHtml">
-        </dcg>
-
         <!--raw html contents that is defined on the design.html-->
         <hr>
         <h2>Basic Tests / Examples</h2>
@@ -70,11 +66,6 @@
         <!--referencing an external template and defining a default json content with dcg-data that can only be used inside the template-->
         <dcg dcg-temp="temple" dcg-data='{"foo": "bar"}' dcg-tref>
           <dcg dcg-src="template.html"></dcg>
-        </dcg>
-
-        <!--referencing a template using the raw html content defined on the index.html and using the dynamic content named "sweet" on index.html as a default dataset-->
-        <dcg dcg-temp="test" dcg-data="sweet" dcg-tref>
-          <dcg dcg-raw="templateHtml2"></dcg>
         </dcg>
 
         <!--rendering the previously referenced template and changing the default dataset with dcg-data attribute-->
