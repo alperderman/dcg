@@ -1,5 +1,5 @@
 /*!
-* Dynamic Content Generation (1.1.2) 2022/01/09
+* Dynamic Content Generation (1.1.2) 2022/01/10
 */
 
 //polyfills
@@ -135,18 +135,26 @@ dcg.watchGetTotal = function () { //function for getting the total elapsed time
     dcg.watchTimeTotal += dcg.watchTimeStop - dcg.watchTimeStart;
     return dcg.watchTimeTotal;
 };
-dcg.watchPrint = function (text, total) { //function for printing the time
+dcg.watchPrint = function (text, showTime, total) { //function for printing the time
+    var time;
+    if (text == null) {text = "";}
+    if (showTime == null) {showTime = true;}
+    if (total == null) {total = false;}
     if (total) {
         time = dcg.watchGetTotal();
     } else {
         time = dcg.watchGetElapsed();
     }
     if (dcg.profile.showLogs) {
-        console.log(dcg.logPrefix+text+" "+time+"ms");
+        if (showTime) {
+            console.log(dcg.logPrefix+text+" "+time+"ms");
+        } else {
+            console.log(dcg.logPrefix+text);
+        }
     }
 };
-dcg.watchPrintSplit = function (text) { //function for splitting and printing the time
-    dcg.watchPrint(text);
+dcg.watchPrintSplit = function (text, showTime, total) { //function for splitting and printing the time
+    dcg.watchPrint(text, showTime, total);
     dcg.watchSplit();
 };
 dcg.render = function (arg) { //wrapper for renderDesign function, inputs are: arg.options, arg.content, arg.contentSrc, arg.design, arg.designSrc, arg.after
@@ -249,7 +257,7 @@ dcg.renderDesign = function (arg) { //main render function, inputs are: arg.cont
     step_start();
     function step_start() { //start the time and render
         dcg.watchStart();
-        dcg.watchPrint("Render is started!");
+        dcg.watchPrint("Render is started!", false);
         step_markcss();
     }
     function step_markcss() { //find the styles from the content and mark them with labelRemove
@@ -266,34 +274,6 @@ dcg.renderDesign = function (arg) { //main render function, inputs are: arg.cont
             dcg.watchPrintSplit("Content styles are marked as remnants!");
         }
         step_dependency();
-    }
-    function step_ext(print, callback) { //load the external contents and then continue to render
-        var externalContents;
-        externalContents = dcg.getElementsByAttribute(arg.content.body, dcg.profile.labelSource);
-        dcg.loadContents(externalContents, function () {
-            dcg.watchPrintSplit(print);
-            callback();
-        });
-    }
-    function step_storedynamic(print, callback) { //iterate through the dynamic contents and store them
-        var i, dynamicContents, dynamicContent, contentId, dynamicContentParse, dynamicContentNested;
-        dynamicContents = dcg.getElementsByAttribute(arg.content.body, dcg.profile.labelObj);
-        for (i = 0; i < dynamicContents.length; i++) {
-            dynamicContent = dynamicContents[i];
-            contentId = dynamicContent.getAttribute(dcg.profile.labelObj);
-            if (dynamicContent.hasAttribute(dcg.profile.labelJson)) { //if it has labelJson attribute, parse json
-                dynamicContentParse = JSON.parse(dynamicContent.innerHTML);
-            } else if (dynamicContent.hasAttribute(dcg.profile.labelHtml)) { //if it has labelHtml attribute, clone the node
-                dynamicContentParse = dynamicContent.cloneNode(true);
-            } else { //if it doesn't have labels, store it as it is
-                dynamicContentParse = dynamicContent.innerHTML;
-            }
-            dynamicContentNested = dcg.normalizeObject(dcg.setNestedPropertyValue({}, contentId, dynamicContentParse)); //create nested object based on labelObj and normalize arrays and objects in order to nest them manually later on
-            dcg.dataDynamic = dcg.mergeDeep(dcg.dataDynamic, dynamicContentNested); //merge content with dataDynamic
-            dynamicContent.parentNode.removeChild(dynamicContent);
-        }
-        dcg.watchPrintSplit(print);
-        callback();
     }
     function step_dependency() { //add the dependencies
         var i, designLinks, designStyles, designScripts;
@@ -330,14 +310,58 @@ dcg.renderDesign = function (arg) { //main render function, inputs are: arg.cont
             }
         }
         dcg.watchPrintSplit("Design is inserted to DOM and dependencies are added!");
-        step_ext("Primary external contents are loaded!", function(){
-            arg.content.body.innerHTML = dcg.replaceRoot(arg.content.body.innerHTML);
-            step_storedynamic("Primary dynamic contents are stored!", function(){
-                step_template();
+        dcg.watchPrint("Recursive parse is started!", false);
+        recursive_parse();
+    }
+    function recursive_parse(i, node) { //recursively parse contents: insert external contents -> insert dynamic contents -> render templates
+        if (i == null) {i = 1;}
+        if (node == null) {node = "";}
+        if (node != arg.content.body.innerHTML || i == 1) {
+            node = arg.content.body.innerHTML;
+            step_ext("DEPTH "+i+": External contents are loaded!", function(){
+                arg.content.body.innerHTML = dcg.replaceRoot(arg.content.body.innerHTML);
+                step_dynamic("DEPTH "+i+": Dynamic contents are stored and inserted!", function(){
+                    step_template("DEPTH "+i+": Templates are stored and rendered!", function(){
+                        i++;
+                        recursive_parse(i, node);
+                    });
+                });
             });
+        } else {
+            dcg.watchPrintSplit("Recursive parse is completed!", false);
+            step_escape();
+        }
+    }
+    function step_ext(print, callback) { //load the external contents and then continue to render
+        var externalContents;
+        externalContents = dcg.getElementsByAttribute(arg.content.body, dcg.profile.labelSource);
+        dcg.loadContents(externalContents, function () {
+            dcg.watchPrintSplit(print);
+            callback();
         });
     }
-    function step_template() { //store and render the templates
+    function step_dynamic(print, callback) { //iterate through the dynamic contents then store and insert them
+        var i, dynamicContents, dynamicContent, contentId, dynamicContentParse, dynamicContentNested;
+        dynamicContents = dcg.getElementsByAttribute(arg.content.body, dcg.profile.labelObj);
+        for (i = 0; i < dynamicContents.length; i++) {
+            dynamicContent = dynamicContents[i];
+            contentId = dynamicContent.getAttribute(dcg.profile.labelObj);
+            if (dynamicContent.hasAttribute(dcg.profile.labelJson)) { //if it has labelJson attribute, parse json
+                dynamicContentParse = JSON.parse(dynamicContent.innerHTML);
+            } else if (dynamicContent.hasAttribute(dcg.profile.labelHtml)) { //if it has labelHtml attribute, clone the node
+                dynamicContentParse = dynamicContent.cloneNode(true);
+            } else { //if it doesn't have labels, store it as it is
+                dynamicContentParse = dynamicContent.innerHTML;
+            }
+            dynamicContentNested = dcg.normalizeObject(dcg.setNestedPropertyValue({}, contentId, dynamicContentParse)); //create nested object based on labelObj and normalize arrays and objects in order to nest them manually later on
+            dcg.dataDynamic = dcg.mergeDeep(dcg.dataDynamic, dynamicContentNested); //merge content with dataDynamic
+            dynamicContent.parentNode.removeChild(dynamicContent);
+        }
+        arg.content.body = dcg.displayTokens({obj: arg.content.body});
+        dcg.watchPrintSplit(print);
+        callback();
+    }
+    function step_template(print, callback) { //store and render the templates
         temp_reference();
         temp_render();
         function temp_reference() {
@@ -360,18 +384,8 @@ dcg.renderDesign = function (arg) { //main render function, inputs are: arg.cont
                 temp_render();
             }
         }
-        dcg.watchPrintSplit("Templates are rendered!");
-        step_ext("Secondary external contents are loaded!", function(){
-            arg.content.body.innerHTML = dcg.replaceRoot(arg.content.body.innerHTML);
-            step_storedynamic("Secondary dynamic contents are stored!", function(){
-                step_insertdynamic();
-            });
-        });
-    }
-    function step_insertdynamic() { //insert the dynamic contents and display the tokens
-        arg.content.body = dcg.displayTokens({obj: arg.content.body});
-        dcg.watchPrintSplit("Dynamic contents are inserted!");
-        step_escape();
+        dcg.watchPrintSplit(print);
+        callback();
     }
     function step_escape() { //remove the remnants and escape the elements and tokens
         arg.content.documentElement.innerHTML = dcg.removeMarked(arg.content.documentElement); //keep this at the top because of the DOM modification priority (solution to the IE11 image problem)
@@ -403,7 +417,7 @@ dcg.renderDesign = function (arg) { //main render function, inputs are: arg.cont
     function step_finish() { //stop the time and print the total elapsed time
         var elScreen;
         dcg.watchStop();
-        dcg.watchPrint("Render is finished! Total time:", true);
+        dcg.watchPrint("Render is finished! Total time:", true, true);
         if (dcg.profile.screenBlock) {
             elScreen = dcg.getElementByAttribute(document.body, dcg.profile.labelScreen);
             if (elScreen !== false) {
@@ -438,11 +452,11 @@ dcg.displayTokens = function (arg) { //display tokens function, inputs are: arg.
             tokenPureSplit = tokenPure.split(".");
             tokenData = dcg.getRecursiveValue({arr: arg.data, keys: tokenPureSplit, i: 0, thisRoot: arg.root}); //split the token using dots and recursively get the value from the data
             if (tokenData !== false) {
-                if (dcg.isElement(tokenData)) { //if the value is an html element then run the displayTokens function inside it and set the root relatively
+                if (dcg.isElement(tokenData)) { //if the value is an element then run the displayTokens function inside it and set the root relatively
                     tokenRoot = Object.values(dcg.mergeDeep(tokenPureSplit));
                     tokenRoot.pop();
                     arg.obj.innerHTML = dcg.replaceAll(arg.obj.innerHTML, token, dcg.displayTokens({obj: tokenData.cloneNode(true), root: tokenRoot}).innerHTML, 'g');
-                } else if (typeof tokenData === 'string') { //if the value is string, replace the token using regex
+                } else if (typeof tokenData === 'string') { //if the value is a string, replace the token using regex
                     arg.obj.innerHTML = dcg.replaceAll(arg.obj.innerHTML, token, tokenData, 'g');
                 } else if (typeof tokenData === 'object') { //if the value is an object, stringify it
                     arg.obj.innerHTML = dcg.replaceAll(arg.obj.innerHTML, token, dcg.encodeHtml(JSON.stringify(tokenData)), 'g');
@@ -830,10 +844,10 @@ dcg.loadContents = function (node, callback, i) { //fetch and load external cont
                     if (xhr.status == 200) {
                         node[i].insertAdjacentHTML("afterend", xhr.responseText);
                         node[i].parentNode.removeChild(node[i]);
-                        i++;
-                        dcg.loadContents(node, callback, i);
                     }
                 }
+                i++;
+                dcg.loadContents(node, callback, i);
             });
         }
     } else { //if there are no elements or index is higher than total elements, run the callback function
