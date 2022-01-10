@@ -1,5 +1,5 @@
 /*!
-* Dynamic Content Generation (1.1.2) 2022/01/10
+* Dynamic Content Generation (1.1.3) 2022/01/10
 */
 
 //polyfills
@@ -14,7 +14,7 @@ if (!Object.values) { Object.values = function values(obj) { var res = []; for (
 if (typeof window.CustomEvent !== 'function') { window.CustomEvent = function (event, params) { params = params || {bubbles: false, cancelable: false, detail: null}; var evt = document.createEvent('CustomEvent'); evt.initCustomEvent(event, params.bubbles, params.cancelable, params.detail); return evt; }; }
 
 var dcg = {}; //main object
-dcg.version = "1.1.2"; //version number
+dcg.version = "1.1.3"; //version number
 dcg.logPrefix = "[DCG] "; //log prefix
 dcg.default = { //default presets
     labelObj: "dcg-obj", //dynamic content attribute
@@ -29,7 +29,6 @@ dcg.default = { //default presets
     elemScreen: "<div style='position:fixed;top:0;left:0;z-index:99;width:100vw;height:100vh;background-color:#ffffff;'></div>", //screen block element
     labelRepeat: "dcg-repeat", //repeat attribute: for iterating json contents on design
     labelIf: "dcg-if", //if attribute: for making conditional rendering
-    labelRemove: "dcg-remove", //remove attribute: for removing elements from the content
     labelEscapePrefix: "dcg:", //escape prefix: escape prefix is used for bypassing invalid html errors by escaping tags and attributes
     tokenOpen: "{{", //opening delimiter for tokens
     tokenClose: "}}", //closing delimiter for tokens
@@ -41,7 +40,6 @@ dcg.default = { //default presets
     cacheRender: false, //for caching render change it to true if its going to be used in production
     showLogs: false, //for showing the render logs
     screenBlock: false, //for blocking the screen with the screen block element
-    removeStyles: false //for removing the styles of the content page, if set to true styles will not be carried over rendered page
 };
 //keywords to be used inside the tokens
 dcg.keywordObject = {
@@ -61,10 +59,9 @@ dcg.regexTokenDelimiter = new RegExp(dcg.default.tokenOpen+"(?!"+dcg.default.tok
 dcg.regexEvalDelimiter = new RegExp(dcg.default.evalOpen+"(?!"+dcg.default.tokenEscape+")[\\s\\S]*?"+dcg.default.evalClose, "g"); //regex for eval expressions
 dcg.regexEvalMultiDelimiter = new RegExp(dcg.default.evalMultiOpen+"(?!"+dcg.default.tokenEscape+")[\\s\\S]*?"+dcg.default.evalMultiClose, "g"); //regex for multi-line eval expressions
 dcg.regexEscape = new RegExp("(<[^>]*?"+dcg.default.labelEscapePrefix+"[^>]*?>)", "gim"); //regex for escaped elements
-dcg.regexBody = new RegExp("<body[^>]*>((.|[\\n\\r])*)<\\/body>", "im"); //regex for matching body tag
-dcg.regexLinks = new RegExp("<link[^>]*>", "gim"); //regex for matching link tags
-dcg.regexStyles = new RegExp("<style[^>]*>([\\s\\S]*?)<\\/style>", "gim"); //regex for style tags
-dcg.regexScripts = new RegExp("<script[^>]*>([\\s\\S]*?)<\\/script>", "gim"); //regex for script tags
+dcg.regexHead = new RegExp("<head[^>]*>((.|[\\n\\r])*)<\\/head>", "im"); //regex for the head tag
+dcg.regexBody = new RegExp("<body[^>]*>((.|[\\n\\r])*)<\\/body>", "im"); //regex for the body tag
+dcg.regexScripts = new RegExp("<script[^>]*>([\\s\\S]*?)<\\/script>", "gim"); //regex for the script tags
 dcg.profile = {}; //preset profile for assigning custom presets
 dcg.dataDynamic = {}; //for storing the dynamic contents, they are usable as tokens (html, json and text)
 dcg.dataTemplate = {}; //for storing the template references
@@ -157,11 +154,14 @@ dcg.watchPrintSplit = function (text, showTime, total) { //function for splittin
     dcg.watchPrint(text, showTime, total);
     dcg.watchSplit();
 };
-dcg.render = function (arg) { //wrapper for renderDesign function, inputs are: arg.options, arg.content, arg.contentSrc, arg.design, arg.designSrc, arg.after
+dcg.render = function (arg) { //wrapper for renderDesign function, inputs are: arg.options, arg.content, arg.contentSrc, arg.design, arg.designSrc, arg.before, arg.after
     var result;
     step_start();
     function step_start() { //start the render wrapper
         if (arg == null) {arg = {};}
+        if (typeof arg.before !== 'undefined') {
+            arg.before();
+        }
         dcg.renderReady = false;
         dcg.renderDom = false;
         if (arg.options !== null) {
@@ -221,18 +221,19 @@ dcg.render = function (arg) { //wrapper for renderDesign function, inputs are: a
         var design, designSrc;
         if (arg.design == null) { //if the design is null then check for the external source in the designSrc
             if (arg.designSrc == null) {
-                return;
+                design = false;
+                step_render(content, design);
             } else {
                 designSrc = arg.designSrc;
-            }
-            dcg.xhr(designSrc, function (xhr) {
-                if (xhr.readyState == 4) {
-                    if (xhr.status == 200) {
-                        design = xhr.responseText;
-                        step_render(content, design);
+                dcg.xhr(designSrc, function (xhr) {
+                    if (xhr.readyState == 4) {
+                        if (xhr.status == 200) {
+                            design = xhr.responseText;
+                            step_render(content, design);
+                        }
                     }
-                }
-            });
+                });
+            }
         } else { //if the design is defined then pass it directly
             design = arg.design;
             step_render(content, design);
@@ -258,45 +259,23 @@ dcg.renderDesign = function (arg) { //main render function, inputs are: arg.cont
     function step_start() { //start the time and render
         dcg.watchStart();
         dcg.watchPrint("Render is started!", false);
-        step_markcss();
-    }
-    function step_markcss() { //find the styles from the content and mark them with labelRemove
-        var i, contentStyle, contentCss;
-        if (dcg.profile.removeStyles) {
-            contentStyle = arg.content.getElementsByTagName('style');
-            contentCss = dcg.getElementsByAttribute(arg.content.documentElement, "rel", "stylesheet");
-            for (i = 0; i < contentStyle.length; i++) {
-                contentStyle[i].setAttribute(dcg.profile.labelRemove, "true");
-            }
-            for (i = 0; i < contentCss.length; i++) {
-                contentCss[i].setAttribute(dcg.profile.labelRemove, "true");
-            }
-            dcg.watchPrintSplit("Content styles are marked as remnants!");
+        if (arg.design !== false) { //if design is not defined then skip the design procedure
+            step_design();
+        } else {
+            recursive_parse();
         }
-        step_dependency();
     }
-    function step_dependency() { //add the dependencies
-        var i, designLinks, designStyles, designScripts;
+    function step_design() { //insert the design
+        var i, designScripts;
         arg.design = dcg.replaceRoot(arg.design); //replace the root tokens
+        if ((/\<\/head\>/).test(arg.design)) { //if the design has head then insert it
+            arg.content.head.innerHTML = arg.design.match(dcg.regexHead)[1];
+        }
         if ((/\<\/body\>/).test(arg.design)) { //if the design has body then insert only the body with its attributes
             arg.content.documentElement.innerHTML = arg.content.documentElement.innerHTML.replace("<body", "<body"+arg.design.match("<body" + "(.*)" + ">")[1]);
             arg.content.body.innerHTML += arg.design.match(dcg.regexBody)[1];
         } else { //if it doesn't then insert it directly
             arg.content.body.innerHTML += arg.design;
-        }
-        //get the link elements from the design and insert them
-        designLinks = arg.design.match(dcg.regexLinks);
-        if (designLinks) {
-            for (i = 0;i < designLinks.length;i++) {
-                arg.content.head.innerHTML += designLinks[i];
-            }
-        }
-        //get the style elements from the design and insert them
-        designStyles = arg.design.match(dcg.regexStyles);
-        if (designStyles) {
-            for (i = 0;i < designStyles.length;i++) {
-                arg.content.head.innerHTML += designStyles[i];
-            }
         }
         //remove the script elements that are in the content
         while (arg.content.getElementsByTagName('script').length > 0) {
@@ -310,18 +289,20 @@ dcg.renderDesign = function (arg) { //main render function, inputs are: arg.cont
             }
         }
         dcg.watchPrintSplit("Design is inserted to DOM and dependencies are added!");
-        dcg.watchPrint("Recursive parse is started!", false);
         recursive_parse();
     }
-    function recursive_parse(i, node) { //recursively parse contents: insert external contents -> insert dynamic contents -> render templates
+    function recursive_parse(i, node) { //recursively parse contents: insert external contents -> render templates -> store and insert dynamic contents
         if (i == null) {i = 1;}
         if (node == null) {node = "";}
+        if (i == 1) {
+            dcg.watchPrint("Recursive parse is started!", false);
+        }
         if (node != arg.content.body.innerHTML || i == 1) {
             node = arg.content.body.innerHTML;
             step_ext("DEPTH "+i+": External contents are loaded!", function(){
                 arg.content.body.innerHTML = dcg.replaceRoot(arg.content.body.innerHTML);
-                step_dynamic("DEPTH "+i+": Dynamic contents are stored and inserted!", function(){
-                    step_template("DEPTH "+i+": Templates are stored and rendered!", function(){
+                step_template("DEPTH "+i+": Templates are stored and rendered!", function(){
+                    step_dynamic("DEPTH "+i+": Dynamic contents are stored and inserted!", function(){
                         i++;
                         recursive_parse(i, node);
                     });
@@ -388,7 +369,6 @@ dcg.renderDesign = function (arg) { //main render function, inputs are: arg.cont
         callback();
     }
     function step_escape() { //remove the remnants and escape the elements and tokens
-        arg.content.documentElement.innerHTML = dcg.removeMarked(arg.content.documentElement); //keep this at the top because of the DOM modification priority (solution to the IE11 image problem)
         arg.content.body.innerHTML = dcg.replaceEscapeToken(arg.content.body.innerHTML);
         arg.content.body.innerHTML = dcg.replaceEscape(arg.content.body.innerHTML);
         dcg.renderReady = true;
@@ -401,7 +381,7 @@ dcg.renderDesign = function (arg) { //main render function, inputs are: arg.cont
             link = links[i];
             link.href = link.href;
         }
-        if (dcg.renderDom) {
+        if (dcg.renderDom && arg.design !== false) {
             dcg.loadScripts(arg.content.body.getElementsByTagName("script"), function () {
                 dcg.watchPrintSplit("Scripts are injected!");
                 if (window.location.hash.slice(1) && arg.content.getElementById(window.location.hash.slice(1))) {
@@ -619,17 +599,6 @@ dcg.replaceRoot = function (html, name) { //root tokens function
         }
     }
     return newHtml;
-};
-dcg.removeMarked = function (node) { //remove elements that has labelRemove attribute function
-    if (node == null) {node = document.documentElement}
-    var newHtml = node.cloneNode(true), marked, i;
-    marked = dcg.getElementsByAttribute(newHtml, dcg.profile.labelRemove);
-    if (marked) {
-        for (i = 0; i < marked.length; i++) {
-            marked[i].parentNode.removeChild(marked[i]);
-        }
-    }
-    return newHtml.innerHTML;
 };
 dcg.isValidJs = function (code) { //try eval function
     var result = true;
