@@ -1,5 +1,5 @@
 /*!
-* Dynamic Content Generation (1.1.3) 2022/01/10
+* Dynamic Content Generation (1.1.3) 2022/01/11
 */
 
 //polyfills
@@ -39,7 +39,7 @@ dcg.default = { //default presets
     evalMultiClose: "%!}", //closing delimiter for multi-line eval expressions
     cacheRender: false, //for caching render change it to true if its going to be used in production
     showLogs: false, //for showing the render logs
-    screenBlock: false, //for blocking the screen with the screen block element
+    screenBlock: true, //for blocking the screen with the screen block element
 };
 //keywords to be used inside the tokens
 dcg.keywordObject = {
@@ -70,9 +70,11 @@ dcg.watchTimeStart = 0;
 dcg.watchTimeStop = 0;
 dcg.watchTimeTotal = 0;
 dcg.watchTimeRun = false;
+dcg.evalFunc = undefined; //empty function for running eval expressions
+//static config variables
 dcg.renderReady = false; //for checking if the render is done
 dcg.renderDom = false; //for checking if the render will be on the current document
-dcg.evalFunc = undefined; //empty function for running eval expressions
+dcg.xhrAsync = true; //setting async option for xhr
 dcg.init = function () { //function for initializing the framework
     dcg.reset();
 };
@@ -85,6 +87,8 @@ dcg.config = function (options) { //function for setting custom presets
     dcg.reconstruct();
 };
 dcg.reset = function () { //function for resetting the presets to their default values
+    dcg.renderDom = false;
+    dcg.xhrAsync = true;
     dcg.profile = dcg.mergeDeep(dcg.default);
     dcg.reconstruct();
 };
@@ -163,7 +167,7 @@ dcg.render = function (arg) { //wrapper for renderDesign function, inputs are: a
             arg.before();
         }
         dcg.renderReady = false;
-        dcg.renderDom = false;
+        dcg.reset();
         if (arg.options !== null) {
             dcg.config(arg.options);
         }
@@ -190,7 +194,7 @@ dcg.render = function (arg) { //wrapper for renderDesign function, inputs are: a
             step_content(arg.content);
         }
     }
-    function screen_block() {
+    function screen_block() { //add screen block element if there is none
         var elScreen, elNewScreen;
         elScreen = dcg.getElementByAttribute(document.body, dcg.profile.labelScreen);
         if (elScreen === false) {
@@ -246,9 +250,6 @@ dcg.render = function (arg) { //wrapper for renderDesign function, inputs are: a
             after: arg.after,
             callback: function (render) {
                 result = render;
-                if (arg.options !== null) {
-                    dcg.reset();
-                }
             }
         });
     }
@@ -262,6 +263,7 @@ dcg.renderDesign = function (arg) { //main render function, inputs are: arg.cont
         if (arg.design !== false) { //if design is not defined then skip the design procedure
             step_design();
         } else {
+            dcg.xhrAsync = false;
             recursive_parse();
         }
     }
@@ -381,6 +383,11 @@ dcg.renderDesign = function (arg) { //main render function, inputs are: arg.cont
             link = links[i];
             link.href = link.href;
         }
+        if (arg.design === false) {
+            if (window.location.hash.slice(1) && arg.content.getElementById(window.location.hash.slice(1))) {
+                arg.content.getElementById(window.location.hash.slice(1)).scrollIntoView();
+            }
+        }
         if (dcg.renderDom && arg.design !== false) {
             dcg.loadScripts(arg.content.body.getElementsByTagName("script"), function () {
                 dcg.watchPrintSplit("Scripts are injected!");
@@ -398,17 +405,15 @@ dcg.renderDesign = function (arg) { //main render function, inputs are: arg.cont
         var elScreen;
         dcg.watchStop();
         dcg.watchPrint("Render is finished! Total time:", true, true);
-        if (dcg.profile.screenBlock) {
-            elScreen = dcg.getElementByAttribute(document.body, dcg.profile.labelScreen);
-            if (elScreen !== false) {
-                elScreen.parentNode.removeChild(elScreen);
-            }
-        }
-        if (typeof arg.callback !== 'undefined') {
-            arg.callback(arg.content.documentElement.innerHTML);
+        elScreen = dcg.getElementByAttribute(document.body, dcg.profile.labelScreen);
+        if (elScreen !== false) {
+            elScreen.parentNode.removeChild(elScreen);
         }
         if (typeof arg.after !== 'undefined') {
             arg.after(arg.content.documentElement.innerHTML);
+        }
+        if (typeof arg.callback !== 'undefined') {
+            arg.callback(arg.content.documentElement.innerHTML);
         }
     }
 };
@@ -849,7 +854,7 @@ dcg.loadScripts = function (node, callback, i) { //inject scripts from specified
 dcg.xhr = function (url, callback, cache, method, async) { //xhr function used for fetching external contents, scripts and templates
     if (cache == null) {cache = dcg.profile.cacheRender;}
     if (method == null) {method = 'GET';}
-    if (async == null) {async = true;}
+    if (async == null) {async = dcg.xhrAsync;}
     var xhr, guid, cacheUrl, hashUrl;
     method = method.toUpperCase();
     xhr = new XMLHttpRequest();
