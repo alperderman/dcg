@@ -89,7 +89,6 @@ dcg.config = function (options) { //function for setting custom presets
     dcg.reconstruct();
 };
 dcg.reset = function () { //function for resetting the presets to their default values
-    dcg.renderDom = false;
     dcg.profile = dcg.mergeDeep(dcg.default);
     dcg.reconstruct();
 };
@@ -168,7 +167,7 @@ dcg.render = function (arg) { //wrapper for renderDesign function, inputs are: a
             arg.before();
         }
         dcg.renderReady = false;
-        dcg.reset();
+        dcg.renderDom = false;
         if (arg.options !== null) {
             dcg.config(arg.options);
         }
@@ -251,6 +250,7 @@ dcg.render = function (arg) { //wrapper for renderDesign function, inputs are: a
             after: arg.after,
             callback: function (render) {
                 result = render;
+                dcg.reset();
             }
         });
     }
@@ -844,10 +844,22 @@ dcg.loadScripts = function(arr, callback, i) { //inject scripts from array, recu
     var len;
     if (i == null) {i = 0;}
     if (arr == null) {len = 0;} else {len = arr.length;}
-    if (len > 0 && i < len) {
-        dcg.getScript(arr[i], function () {
-            i++;
-            dcg.loadScripts(arr, callback, i);
+    if (typeof arr === 'object') {
+        if (len > 0 && i < len) {
+            dcg.getScript(arr[i], function () {
+                i++;
+                dcg.loadScripts(arr, callback, i);
+            });
+        } else {
+            if (typeof callback !== 'undefined') {
+                callback();
+            }
+        }
+    } else if (typeof arr === 'string') {
+        dcg.getScript(arr, function () {
+            if (typeof callback !== 'undefined') {
+                callback();
+            }
         });
     } else {
         if (typeof callback !== 'undefined') {
