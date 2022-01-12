@@ -117,5 +117,12 @@
 
     <!--dynamically loading a template named "test" with loadTemplate function and inserting into the document.body-->
     <script>document.body.innerHTML += dcg.loadTemplate({id:"temple", data: {"foo": "notbar", "card2": {"Color": "#ea5"}}}).innerHTML;</script>
+    
+    <!--custom load event for "onload" preset option-->
+    <script>
+      window.addEventListener('testloadevent', function() {
+        console.log("testing a custom load event!");
+      });
+    </script>
   </body>
 </html>

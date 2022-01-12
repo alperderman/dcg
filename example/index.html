@@ -67,21 +67,19 @@
       <p>Testing nested HTML elements inside JSON</p>
     </div>
 
-
     <!--external json content-->
     <div dcg-obj="exRate" dcg-json>
       <dcg dcg-src="https://api.exchangeratesapi.io/latest"></dcg>
     </div>
 
     <script src="../dist/dcg.js"></script>
-    
     <!--configuring and initiating the render-->
     <script>
       dcg.render({
         designSrc: "design.html",
         options: {
           showLogs: true,
-          screenBlock: true
+          onload: [{node: window, name: "testloadevent"}] //custom onload event
         }
       });
     </script>
