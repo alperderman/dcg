@@ -1,5 +1,5 @@
 /*!
-* Dynamic Content Generation (1.1.3) 2022/01/11
+* Dynamic Content Generation (1.1.4) 2022/01/12
 */
 
 //polyfills
@@ -14,7 +14,7 @@ if (!Object.values) { Object.values = function values(obj) { var res = []; for (
 if (typeof window.CustomEvent !== 'function') { window.CustomEvent = function (event, params) { params = params || {bubbles: false, cancelable: false, detail: null}; var evt = document.createEvent('CustomEvent'); evt.initCustomEvent(event, params.bubbles, params.cancelable, params.detail); return evt; }; }
 
 var dcg = {}; //main object
-dcg.version = "1.1.3"; //version number
+dcg.version = "1.1.4"; //version number
 dcg.logPrefix = "[DCG] "; //log prefix
 dcg.default = { //default presets
     labelObj: "dcg-obj", //dynamic content attribute
@@ -37,6 +37,9 @@ dcg.default = { //default presets
     evalClose: "%}", //closing delimiter for eval expressions
     evalMultiOpen: "{!%", //opening delimiter for multi-line eval expressions
     evalMultiClose: "%!}", //closing delimiter for multi-line eval expressions
+    scripts: [], //for defining external scripts
+    onload: [], //for defining custom onload events
+    replaceHead: false, //for whether if head is appended or replaced completely by the design's head
     cacheRender: false, //for caching render change it to true if its going to be used in production
     showLogs: false, //for showing the render logs
     screenBlock: true, //for blocking the screen with the screen block element
@@ -74,7 +77,6 @@ dcg.evalFunc = undefined; //empty function for running eval expressions
 //static config variables
 dcg.renderReady = false; //for checking if the render is done
 dcg.renderDom = false; //for checking if the render will be on the current document
-dcg.xhrAsync = true; //setting async option for xhr
 dcg.init = function () { //function for initializing the framework
     dcg.reset();
 };
@@ -88,7 +90,6 @@ dcg.config = function (options) { //function for setting custom presets
 };
 dcg.reset = function () { //function for resetting the presets to their default values
     dcg.renderDom = false;
-    dcg.xhrAsync = true;
     dcg.profile = dcg.mergeDeep(dcg.default);
     dcg.reconstruct();
 };
@@ -263,7 +264,6 @@ dcg.renderDesign = function (arg) { //main render function, inputs are: arg.cont
         if (arg.design !== false) { //if design is not defined then skip the design procedure
             step_design();
         } else {
-            dcg.xhrAsync = false;
             recursive_parse();
         }
     }
@@ -271,7 +271,11 @@ dcg.renderDesign = function (arg) { //main render function, inputs are: arg.cont
         var i, designScripts;
         arg.design = dcg.replaceRoot(arg.design); //replace the root tokens
         if ((/\<\/head\>/).test(arg.design)) { //if the design has head then insert it
-            arg.content.head.innerHTML = arg.design.match(dcg.regexHead)[1];
+            if (dcg.profile.replaceHead) {
+                arg.content.head.innerHTML = arg.design.match(dcg.regexHead)[1];
+            } else {
+                arg.content.head.innerHTML += arg.design.match(dcg.regexHead)[1];
+            }
         }
         if ((/\<\/body\>/).test(arg.design)) { //if the design has body then insert only the body with its attributes
             arg.content.documentElement.innerHTML = arg.content.documentElement.innerHTML.replace("<body", "<body"+arg.design.match("<body" + "(.*)" + ">")[1]);
@@ -377,31 +381,37 @@ dcg.renderDesign = function (arg) { //main render function, inputs are: arg.cont
         dcg.watchPrintSplit("Elements are escaped and remnants are removed!");
         step_inject();
     }
-    function step_inject() { //reload styles, inject the scripts, jump to anchor and dispatch onload event
+    function step_inject() { //reload styles and inject the scripts
         var i, links = document.getElementsByTagName("link"), link;
         for (i = 0; i < links.length;i++) {
             link = links[i];
             link.href = link.href;
         }
-        if (arg.design === false) {
+        dcg.loadScripts(dcg.profile.scripts, function() { //load the external scripts
+            if (dcg.profile.scripts.length > 0) {
+                dcg.watchPrintSplit("External scripts are injected!");
+            }
+            if (dcg.renderDom && arg.design !== false) { //load the scripts of the design
+                dcg.loadScriptsNS(arg.content.body.getElementsByTagName("script"), function () {
+                    dcg.watchPrintSplit("Design scripts are injected!");
+                    step_detail();
+                });
+            } else {
+                step_detail();
+            }
+        });
+    }
+    function step_detail() { //if render is not occured on the virtual dom then jump to anchor and dispatch onload events
+        if (dcg.renderDom) {
             if (window.location.hash.slice(1) && arg.content.getElementById(window.location.hash.slice(1))) {
                 arg.content.getElementById(window.location.hash.slice(1)).scrollIntoView();
             }
+            dcg.watchPrintSplit("Dispatching the onload events!");
+            dcg.DOMLoad();
         }
-        if (dcg.renderDom && arg.design !== false) {
-            dcg.loadScripts(arg.content.body.getElementsByTagName("script"), function () {
-                dcg.watchPrintSplit("Scripts are injected!");
-                if (window.location.hash.slice(1) && arg.content.getElementById(window.location.hash.slice(1))) {
-                    arg.content.getElementById(window.location.hash.slice(1)).scrollIntoView();
-                }
-                dcg.DOMLoad();
-                step_finish();
-            });
-        } else {
-            step_finish();
-        }
+        step_finish();
     }
-    function step_finish() { //stop the time and print the total elapsed time
+    function step_finish() { //stop the time, print the total elapsed time, remove the screen block and run after function
         var elScreen;
         dcg.watchStop();
         dcg.watchPrint("Render is finished! Total time:", true, true);
@@ -806,7 +816,7 @@ dcg.loadTemplate = function (arg) { //load template function, inputs are: arg.id
         return template; //return the template
     }
 };
-dcg.loadContents = function (node, callback, i) { //fetch and load external contents, this is a recursive function
+dcg.loadContents = function (node, callback, i) { //fetch and load external contents, recursively
     if (node == null) {node = dcg.getElementsByAttribute(document.documentElement, dcg.profile.labelSource);} //if node doesn't exist then set it to document element and get the elements with source attribute
     if (i == null) {i = 0;} //if index doesn't exist, set it to 0
     var src, len = node.length;
@@ -830,7 +840,22 @@ dcg.loadContents = function (node, callback, i) { //fetch and load external cont
         }
     }
 };
-dcg.loadScripts = function (node, callback, i) { //inject scripts from specified element this is a recursive function
+dcg.loadScripts = function(arr, callback, i) { //inject scripts from array, recursively
+    var len;
+    if (i == null) {i = 0;}
+    if (arr == null) {len = 0;} else {len = arr.length;}
+    if (len > 0 && i < len) {
+        dcg.getScript(arr[i], function () {
+            i++;
+            dcg.loadScripts(arr, callback, i);
+        });
+    } else {
+        if (typeof callback !== 'undefined') {
+            callback();
+        }
+    }
+};
+dcg.loadScriptsNS = function (node, callback, i) { //inject scripts from specified element, recursively
     if (node == null) {node = document.getElementsByTagName("script");} //if node is not specified then get all script elements
     if (i == null) {i = 0;} //if index is not defined then set it to 0
     var len = node.length;
@@ -838,12 +863,12 @@ dcg.loadScripts = function (node, callback, i) { //inject scripts from specified
         if (node[i].src) { //check if script element has source attribute, if it has then fetch the external script and inject it
             dcg.getScript(node[i].src, function () {
                 i++;
-                dcg.loadScripts(node, callback, i);
+                dcg.loadScriptsNS(node, callback, i);
             });
         } else { //if it hasn't then inject it directly
             dcg.DOMEval(node[i].text);
             i++;
-            dcg.loadScripts(node, callback, i);
+            dcg.loadScriptsNS(node, callback, i);
         }
     } else { //if there are no elements or index is higher than total elements then run the callback function
         if (typeof callback !== 'undefined') {
@@ -854,7 +879,7 @@ dcg.loadScripts = function (node, callback, i) { //inject scripts from specified
 dcg.xhr = function (url, callback, cache, method, async) { //xhr function used for fetching external contents, scripts and templates
     if (cache == null) {cache = dcg.profile.cacheRender;}
     if (method == null) {method = 'GET';}
-    if (async == null) {async = dcg.xhrAsync;}
+    if (async == null) {async = true;}
     var xhr, guid, cacheUrl, hashUrl;
     method = method.toUpperCase();
     xhr = new XMLHttpRequest();
@@ -874,10 +899,14 @@ dcg.xhr = function (url, callback, cache, method, async) { //xhr function used f
     xhr.open(method, url, async);
     xhr.send();
 };
-dcg.DOMLoad = function () { //imitate window onload
+dcg.DOMLoad = function () { //imitate window onload and dispatch custom onload events
+    var i;
     document.dispatchEvent(new CustomEvent('DOMContentLoaded'));
     window.dispatchEvent(new CustomEvent('DOMContentLoaded'));
     window.dispatchEvent(new CustomEvent('load'));
+    for (i = 0; i < dcg.profile.onload.length; i++) {
+        dcg.profile.onload[i].node.dispatchEvent(new CustomEvent(dcg.profile.onload[i].name));
+    }
 };
 dcg.DOMEval = function (code) { //script injection function
     var script;
