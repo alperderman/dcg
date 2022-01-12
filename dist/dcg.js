@@ -89,6 +89,7 @@ dcg.config = function (options) { //function for setting custom presets
     dcg.reconstruct();
 };
 dcg.reset = function () { //function for resetting the presets to their default values
+    dcg.renderDom = false;
     dcg.profile = dcg.mergeDeep(dcg.default);
     dcg.reconstruct();
 };
@@ -167,7 +168,7 @@ dcg.render = function (arg) { //wrapper for renderDesign function, inputs are: a
             arg.before();
         }
         dcg.renderReady = false;
-        dcg.renderDom = false;
+        dcg.reset();
         if (arg.options !== null) {
             dcg.config(arg.options);
         }
@@ -250,7 +251,6 @@ dcg.render = function (arg) { //wrapper for renderDesign function, inputs are: a
             after: arg.after,
             callback: function (render) {
                 result = render;
-                dcg.reset();
             }
         });
     }
