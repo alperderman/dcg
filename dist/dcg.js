@@ -1,5 +1,5 @@
 /*!
-* Dynamic Content Generation (1.1.4) 2022/01/12
+* Dynamic Content Generation (1.1.4) 2022/01/16
 */
 
 //polyfills
@@ -26,7 +26,6 @@ dcg.default = { //default presets
     labelTemplateRender: "dcg-tren", //template render attribute: for rendering the templates that has been referenced before
     labelSource: "dcg-src", //external source attribute: for fetching external contents or external templates
     labelScreen: "dcg-screen", //screen block attribute: for indicating the screen block element
-    elemScreen: "<div style='position:fixed;top:0;left:0;z-index:99;width:100vw;height:100vh;background-color:#ffffff;'></div>", //screen block element
     labelRepeat: "dcg-repeat", //repeat attribute: for iterating json contents on design
     labelIf: "dcg-if", //if attribute: for making conditional rendering
     labelEscapePrefix: "dcg:", //escape prefix: escape prefix is used for bypassing invalid html errors by escaping tags and attributes
@@ -43,6 +42,11 @@ dcg.default = { //default presets
     cacheRender: false, //for caching render change it to true if its going to be used in production
     showLogs: false, //for showing the render logs
     screenBlock: true, //for blocking the screen with the screen block element
+    screen: { //screen block properties
+        element: "<div style='position:fixed;top:0;left:0;z-index:99;width:100vw;height:100vh;background-color:#ffffff;'></div>", //screen block element
+        mode: 0, //for choosing the hiding method of the screen block. 0: removes the screen block element completely, 1: adds a display none, 2: custom hiding method with the custom function
+        custom: undefined //function for defining custom hiding method for the screen block (mode 2)
+    }
 };
 //keywords to be used inside the tokens
 dcg.keywordObject = {
@@ -201,7 +205,7 @@ dcg.render = function (arg) { //wrapper for renderDesign function, inputs are: a
         if (elScreen === false) {
             elNewScreen = document.createElement("dcg");
             elNewScreen.setAttribute(dcg.profile.labelScreen, "");
-            elNewScreen.innerHTML = dcg.profile.elemScreen;
+            elNewScreen.innerHTML = dcg.profile.screen.element;
             document.body.appendChild(elNewScreen);
         }
     }
@@ -417,7 +421,17 @@ dcg.renderDesign = function (arg) { //main render function, inputs are: arg.cont
         dcg.watchPrint("Render is finished! Total time:", true, true);
         elScreen = dcg.getElementByAttribute(document.body, dcg.profile.labelScreen);
         if (elScreen !== false) {
-            elScreen.parentNode.removeChild(elScreen);
+            if (dcg.profile.screen.mode == 0) {
+                elScreen.parentNode.removeChild(elScreen);
+            }
+            if (dcg.profile.screen.mode == 1) {
+                elScreen.style.display = "none";
+            }
+            if (dcg.profile.screen.mode == 2) {
+                if (typeof dcg.profile.screen.custom !== 'undefined') {
+                    dcg.profile.screen.custom(elScreen);
+                }
+            }
         }
         if (typeof arg.after !== 'undefined') {
             arg.after(arg.content.documentElement.innerHTML);
