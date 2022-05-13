@@ -1,5 +1,5 @@
 /*!
-* Dynamic Content Generation (1.1.4) 2022/01/16
+* Dynamic Content Generation (2.0.0) 2022/05/09
 */
 
 //polyfills
@@ -14,17 +14,21 @@ if (!Object.values) { Object.values = function values(obj) { var res = []; for (
 if (typeof window.CustomEvent !== 'function') { window.CustomEvent = function (event, params) { params = params || {bubbles: false, cancelable: false, detail: null}; var evt = document.createEvent('CustomEvent'); evt.initCustomEvent(event, params.bubbles, params.cancelable, params.detail); return evt; }; }
 
 var dcg = {}; //main object
-dcg.version = "1.1.4"; //version number
+dcg.version = "2.0.0"; //version number
 dcg.logPrefix = "[DCG] "; //log prefix
 dcg.default = { //default presets
     labelObj: "dcg-obj", //dynamic content attribute
     labelJson: "dcg-json", //json content attribute
     labelHtml: "dcg-html", //html content attribute
     labelTemplate: "dcg-temp", //temp attribute: for indicating templates
-    labelTemplateData: "dcg-data", //data attribute: for passing raw json data to the template or binding the template with dynamic content
-    labelTemplateReference: "dcg-tref", //template reference attribute: for loading template for future uses
-    labelTemplateRender: "dcg-tren", //template render attribute: for rendering the templates that has been referenced before
+    labelTemplateObj: "dcg-tobj", //template object attribute: for passing raw json data to the template or binding the template with dynamic content
+    labelTemplatePre: "dcg-tpre", //template pre attribute: for loading templates before tokens are rendered
+    labelTemplateRef: "dcg-tref", //template reference attribute: for loading template for future uses
+    labelTemplateRen: "dcg-tren", //template render attribute: for rendering the templates that has been referenced before
     labelSource: "dcg-src", //external source attribute: for fetching external contents or external templates
+    labelSourceObj: "dcg-sobj", //source obj attribute: for defining the data of the xhr request
+    labelSourceMet: "dcg-smet", //source method attribute: for defining the method of the xhr request
+    labelSourcePre: "dcg-spre", //source pre attribute: for fetching external contents before tokens are rendered
     labelScreen: "dcg-screen", //screen block attribute: for indicating the screen block element
     labelRepeat: "dcg-repeat", //repeat attribute: for iterating json contents on design
     labelIf: "dcg-if", //if attribute: for making conditional rendering
@@ -36,10 +40,10 @@ dcg.default = { //default presets
     evalClose: "%}", //closing delimiter for eval expressions
     evalMultiOpen: "{!%", //opening delimiter for multi-line eval expressions
     evalMultiClose: "%!}", //closing delimiter for multi-line eval expressions
-    scripts: [], //for defining external scripts
-    onload: [], //for defining custom onload events
-    replaceHead: false, //for whether if head is appended or replaced completely by the design's head
-    cacheRender: false, //for caching render change it to true if its going to be used in production
+    injectScripts: [], //for injecting external scripts
+    onloadEvents: [], //for defining custom onload events
+    replaceHead: false, //for whether if head is appended or replaced completely with the design's head
+    cacheRender: true, //for caching the render
     showLogs: false, //for showing the render logs
     screenBlock: true, //for blocking the screen with the screen block element
     screen: { //screen block properties
@@ -48,7 +52,7 @@ dcg.default = { //default presets
         custom: undefined //function for defining custom hiding method for the screen block (mode 2)
     }
 };
-//keywords to be used inside the tokens
+//keywords that are going to be used inside the tokens
 dcg.keywordObject = {
     this:"_this",
     key:"_key",
@@ -301,7 +305,7 @@ dcg.renderDesign = function (arg) { //main render function, inputs are: arg.cont
         dcg.watchPrintSplit("Design is inserted to DOM and dependencies are added!");
         recursive_parse();
     }
-    function recursive_parse(i, node) { //recursively parse contents: insert external contents -> render templates -> store and insert dynamic contents
+    function recursive_parse(i, node) { //recursively parse contents: insert external contents -> render templates -> store and insert dynamic contents -> render templates again
         if (i == null) {i = 1;}
         if (node == null) {node = "";}
         if (i == 1) {
@@ -309,12 +313,16 @@ dcg.renderDesign = function (arg) { //main render function, inputs are: arg.cont
         }
         if (node != arg.content.body.innerHTML || i == 1) {
             node = arg.content.body.innerHTML;
-            step_ext("DEPTH "+i+": External contents are loaded!", function(){
+            step_ext("DEPTH "+i+": External contents are loaded!", true, function(){
                 arg.content.body.innerHTML = dcg.replaceRoot(arg.content.body.innerHTML);
-                step_template("DEPTH "+i+": Templates are stored and rendered!", function(){
+                step_template("DEPTH "+i+": Templates are stored and rendered before dynamic contents!", true, function(){
                     step_dynamic("DEPTH "+i+": Dynamic contents are stored and inserted!", function(){
-                        i++;
-                        recursive_parse(i, node);
+                        step_template("DEPTH "+i+": Templates are stored and rendered after dynamic contents!", false, function(){
+                            step_ext("DEPTH "+i+": External contents are loaded after dynamic contents!", false, function(){
+                                i++;
+                                recursive_parse(i, node);
+                            });
+                        });
                     });
                 });
             });
@@ -323,9 +331,13 @@ dcg.renderDesign = function (arg) { //main render function, inputs are: arg.cont
             step_escape();
         }
     }
-    function step_ext(print, callback) { //load the external contents and then continue to render
+    function step_ext(print, pre, callback) { //load the external contents and then continue to render
         var externalContents;
-        externalContents = dcg.getElementsByAttribute(arg.content.body, dcg.profile.labelSource);
+        if (pre) {
+            externalContents = dcg.getElementsByAttribute(arg.content.body, dcg.profile.labelSourcePre);
+        } else {
+            externalContents = dcg.getElementsByAttribute(arg.content.body, dcg.profile.labelSource);
+        }
         dcg.loadContents(externalContents, function () {
             dcg.watchPrintSplit(print);
             callback();
@@ -338,7 +350,11 @@ dcg.renderDesign = function (arg) { //main render function, inputs are: arg.cont
             dynamicContent = dynamicContents[i];
             contentId = dynamicContent.getAttribute(dcg.profile.labelObj);
             if (dynamicContent.hasAttribute(dcg.profile.labelJson)) { //if it has labelJson attribute, parse json
-                dynamicContentParse = JSON.parse(dynamicContent.innerHTML);
+                dynamicContentParse = dcg.isValidJSON(dynamicContent.innerHTML);
+                if (!dynamicContentParse) {
+                    dcg.watchPrint('WARNING: JSON parse error on token labeled "'+contentId+'"!', false);
+                    dynamicContentParse = '';
+                }
             } else if (dynamicContent.hasAttribute(dcg.profile.labelHtml)) { //if it has labelHtml attribute, clone the node
                 dynamicContentParse = dynamicContent.cloneNode(true);
             } else { //if it doesn't have labels, store it as it is
@@ -348,29 +364,33 @@ dcg.renderDesign = function (arg) { //main render function, inputs are: arg.cont
             dcg.dataDynamic = dcg.mergeDeep(dcg.dataDynamic, dynamicContentNested); //merge content with dataDynamic
             dynamicContent.parentNode.removeChild(dynamicContent);
         }
-        arg.content.body = dcg.displayTokens({obj: arg.content.body});
+        arg.content.body = dcg.displayTokens({el: arg.content.body});
         dcg.watchPrintSplit(print);
         callback();
     }
-    function step_template(print, callback) { //store and render the templates
+    function step_template(print, pre, callback) { //store and render the templates
         temp_reference();
         temp_render();
         function temp_reference() {
             var designTemplate, designTemplateId;
-            designTemplate = dcg.getElementByAttribute(arg.content.body, dcg.profile.labelTemplateReference);
+            designTemplate = dcg.getElementByAttribute(arg.content.body, dcg.profile.labelTemplateRef);
             if (designTemplate !== false) {
                 designTemplateId = designTemplate.getAttribute(dcg.profile.labelTemplate);
-                dcg.loadTemplate({id : designTemplateId, obj : designTemplate});
+                dcg.loadTemplate({id : designTemplateId, el : designTemplate});
                 designTemplate.parentNode.removeChild(designTemplate);
                 temp_reference();
             }
         }
         function temp_render() {
             var designTemplate, designTemplateId;
-            designTemplate = dcg.getElementByAttribute(arg.content.body, dcg.profile.labelTemplateRender);
+            if (pre) {
+                designTemplate = dcg.getElementByAttribute(arg.content.body, dcg.profile.labelTemplatePre);
+            } else {
+                designTemplate = dcg.getElementByAttribute(arg.content.body, dcg.profile.labelTemplateRen);
+            }
             if (designTemplate !== false) {
                 designTemplateId = designTemplate.getAttribute(dcg.profile.labelTemplate);
-                designTemplate.insertAdjacentHTML("afterend", dcg.loadTemplate({id : designTemplateId, obj : designTemplate}).innerHTML);
+                designTemplate.insertAdjacentHTML("afterend", dcg.loadTemplate({id : designTemplateId, el : designTemplate}).innerHTML);
                 designTemplate.parentNode.removeChild(designTemplate);
                 temp_render();
             }
@@ -391,8 +411,8 @@ dcg.renderDesign = function (arg) { //main render function, inputs are: arg.cont
             link = links[i];
             link.href = link.href;
         }
-        dcg.loadScripts(dcg.profile.scripts, function() { //load the external scripts
-            if (dcg.profile.scripts.length > 0) {
+        dcg.loadScripts(dcg.profile.injectScripts, function() { //load the external scripts
+            if (dcg.profile.injectScripts.length > 0) {
                 dcg.watchPrintSplit("External scripts are injected!");
             }
             if (dcg.renderDom && arg.design !== false) { //load the scripts of the design
@@ -441,59 +461,59 @@ dcg.renderDesign = function (arg) { //main render function, inputs are: arg.cont
         }
     }
 };
-dcg.displayTokens = function (arg) { //display tokens function, inputs are: arg.data, arg.obj, arg.root
+dcg.displayTokens = function (arg) { //display tokens function, inputs are: arg.obj, arg.el, arg.root
     if (arg == null) {arg = {};}
-    if (!arg.hasOwnProperty("data")) {arg.data = dcg.dataDynamic;} //default data is dcg.dataDynamic
-    if (!arg.hasOwnProperty("obj")) {arg.obj = document.body;} //default element is document.body
+    if (!arg.hasOwnProperty("obj")) {arg.obj = dcg.dataDynamic;} //default data is dcg.dataDynamic
+    if (!arg.hasOwnProperty("el")) {arg.el = document.body;} //default element is document.body
     if (!arg.hasOwnProperty("root")) {arg.root = false;} //token root
     step_start();
     function step_start() {
-        arg.data = dcg.normalizeObject(arg.data); //normalize the object
-        arg.obj = arg.obj.cloneNode(true); //clone the element
+        arg.obj = dcg.normalizeObject(arg.obj); //normalize the object
+        arg.el = arg.el.cloneNode(true); //clone the element
         step_token();
     }
     function step_token() { //replace all superficial tokens
         var i, tokens, token, tokenPure, tokenPureSplit, tokenData, tokenRoot;
-        tokens = dcg.removeDuplicatesFromArray(arg.obj.innerHTML.match(dcg.regexTokenDelimiter)); //get all tokens from the element and remove duplicated tokens
+        tokens = dcg.removeDuplicatesFromArray(arg.el.innerHTML.match(dcg.regexTokenDelimiter)); //get all tokens from the element and remove duplicated tokens
         for (i = 0;i < tokens.length;i++) { //iterate through tokens
             token = tokens[i];
             tokenPure = token.substring(dcg.profile.tokenOpen.length, token.length-dcg.profile.tokenClose.length).toLowerCase(); //remove the token delimiters
             tokenPureSplit = tokenPure.split(".");
-            tokenData = dcg.getRecursiveValue({arr: arg.data, keys: tokenPureSplit, i: 0, thisRoot: arg.root}); //split the token using dots and recursively get the value from the data
+            tokenData = dcg.getRecursiveValue({arr: arg.obj, keys: tokenPureSplit, i: 0, thisRoot: arg.root}); //split the token using dots and recursively get the value from the data
             if (tokenData !== false) {
-                if (dcg.isElement(tokenData)) { //if the value is an element then run the displayTokens function inside it and set the root relatively
+                if (dcg.isElement(tokenData)) { //if the value is an html element then run the displayTokens function inside it and set the root relatively
                     tokenRoot = Object.values(dcg.mergeDeep(tokenPureSplit));
                     tokenRoot.pop();
-                    arg.obj.innerHTML = dcg.replaceAll(arg.obj.innerHTML, token, dcg.displayTokens({obj: tokenData.cloneNode(true), root: tokenRoot}).innerHTML, 'g');
+                    arg.el.innerHTML = dcg.replaceAll(arg.el.innerHTML, token, dcg.displayTokens({el: tokenData.cloneNode(true), root: tokenRoot}).innerHTML, 'g');
                 } else if (typeof tokenData === 'string') { //if the value is a string, replace the token using regex
-                    arg.obj.innerHTML = dcg.replaceAll(arg.obj.innerHTML, token, tokenData, 'g');
+                    arg.el.innerHTML = dcg.replaceAll(arg.el.innerHTML, token, tokenData, 'g');
                 } else if (typeof tokenData === 'object') { //if the value is an object, stringify it
-                    arg.obj.innerHTML = dcg.replaceAll(arg.obj.innerHTML, token, dcg.encodeHtml(JSON.stringify(tokenData)), 'g');
+                    arg.el.innerHTML = dcg.replaceAll(arg.el.innerHTML, token, dcg.encodeHtml(JSON.stringify(tokenData)), 'g');
                 }
             }
         }
         step_repeat();
     }
     function step_repeat() { //iterate the elements that has dcg-repeat attribute and replace tokens inside them
-        var key, i, ii, arr, objRepeat, objRepeatClone, objRepeatCloneHtml, repeatAttr, repeatAttrSplit, repeatAttrSplitDot, tokenDataArray, tokens, token, tokenPure, tokenPureSplit, tokenData, tokenRoot, aliasRegex, aliasRegexMatches, aliasRegexMatch, aliasMatch, aliasReplace;
-        objRepeat = dcg.getElementByAttribute(arg.obj, dcg.profile.labelRepeat); //get the first element that has dcg-repeat attribute
-        objRepeatCloneHtml = "";
-        if (objRepeat !== false) { //if there is element with repeat attribute, continue
-            repeatAttr = objRepeat.getAttribute(dcg.profile.labelRepeat).toLowerCase();
+        var key, i, ii, arr, elRepeat, elRepeatClone, elRepeatCloneHtml, repeatAttr, repeatAttrSplit, repeatAttrSplitDot, tokenDataArray, tokens, token, tokenPure, tokenPureSplit, tokenData, aliasRegex, aliasRegexMatches, aliasRegexMatch, aliasMatch, aliasReplace;
+        elRepeat = dcg.getElementByAttribute(arg.el, dcg.profile.labelRepeat); //get the first element that has dcg-repeat attribute
+        elRepeatCloneHtml = "";
+        if (elRepeat !== false) { //if there is element with repeat attribute, continue
+            repeatAttr = elRepeat.getAttribute(dcg.profile.labelRepeat).toLowerCase();
             repeatAttrSplit = repeatAttr.split(" ");
             repeatAttrSplitDot = repeatAttrSplit[0].split("."); //split the dcg-repeat attribute with spaces and dots
-            tokenDataArray = dcg.getRecursiveValue({arr: arg.data, keys: repeatAttrSplitDot, i: 0, thisRoot: arg.root}); //get the object or array from the data using splitted variable
-            if (tokenDataArray === false && arg.data !== dcg.dataDynamic) { //if there is no specified token inside the data then check the dcg.dataDynamic (fallback for template data)
+            tokenDataArray = dcg.getRecursiveValue({arr: arg.obj, keys: repeatAttrSplitDot, i: 0, thisRoot: arg.root}); //get the object or array from the data using splitted variable
+            if (tokenDataArray === false && arg.obj !== dcg.dataDynamic) { //if there is no specified token inside the data then check the dcg.dataDynamic (fallback for template data)
                 tokenDataArray = dcg.getRecursiveValue({arr: dcg.dataDynamic, keys: repeatAttrSplitDot, i: 0, thisRoot: arg.root});
             }
             if (tokenDataArray !== false) {
                 i = 0;
                 for (var key in tokenDataArray) {
-                    objRepeatClone = objRepeat.cloneNode(true); //clone the element that it will be repeated
+                    elRepeatClone = elRepeat.cloneNode(true); //clone the element that it will be repeated
                     aliasRegex = new RegExp("(?:<)[^>]*((?:"+dcg.profile.labelRepeat+")(?:=)(?:\"|')(?:"+repeatAttrSplit[2]+"\\.)([^>]*?)(?:\"|'))[^>]*(?:>)", "gim");
                     aliasRegexMatches = [];
                     //replace alias inside the cloned element to literal definition in order to repeat the child elements that uses the alias from the parent element
-                    while (aliasRegexMatch = aliasRegex.exec(objRepeatClone.innerHTML)) { //find the child elements that uses the alias from the parent element
+                    while (aliasRegexMatch = aliasRegex.exec(elRepeatClone.innerHTML)) { //find the child elements that uses the alias from the parent element
                         arr = [];
                         arr.push(aliasRegexMatch[1]);
                         arr.push(aliasRegexMatch[2]);
@@ -502,9 +522,9 @@ dcg.displayTokens = function (arg) { //display tokens function, inputs are: arg.
                     for (ii = 0;ii < aliasRegexMatches.length;ii++) { //iterate through the all of the matches and replace them with literal definitions using regex
                         aliasMatch = aliasRegexMatches[ii];
                         aliasReplace = dcg.profile.labelRepeat+"='"+repeatAttrSplit[0]+"."+key+"."+aliasMatch[1]+"'";
-                        objRepeatClone.innerHTML = dcg.replaceAll(objRepeatClone.innerHTML, aliasMatch[0], aliasReplace, 'g');
+                        elRepeatClone.innerHTML = dcg.replaceAll(elRepeatClone.innerHTML, aliasMatch[0], aliasReplace, 'g');
                     }
-                    tokens = dcg.removeDuplicatesFromArray(objRepeatClone.innerHTML.match(dcg.regexTokenDelimiter)); //get all tokens inside the repeated element
+                    tokens = dcg.removeDuplicatesFromArray(elRepeatClone.innerHTML.match(dcg.regexTokenDelimiter)); //get all tokens inside the repeated element
                     for (ii = 0;ii < tokens.length;ii++) {
                         token = tokens[ii];
                         tokenPure = token.substring(dcg.profile.tokenOpen.length, token.length-dcg.profile.tokenClose.length).toLowerCase(); //remove the token delimiters
@@ -515,58 +535,58 @@ dcg.displayTokens = function (arg) { //display tokens function, inputs are: arg.
                             if (tokenData !== false) {
                                 if (dcg.isElement(tokenData)) { //if the value is an html element then run the displayTokens function inside it and set the root relatively
                                     tokenRoot = repeatAttrSplit[0]+"."+key;
-                                    objRepeatClone.innerHTML = dcg.replaceAll(objRepeatClone.innerHTML, token, dcg.displayTokens({obj: tokenData.cloneNode(true), root: tokenRoot}).innerHTML, 'g');
+                                    elRepeatClone.innerHTML = dcg.replaceAll(elRepeatClone.innerHTML, token, dcg.displayTokens({el: tokenData.cloneNode(true), root: tokenRoot}).innerHTML, 'g');
                                 } else if (typeof tokenData === 'string') { //if the value is string, replace the token using regex
-                                    objRepeatClone.innerHTML = dcg.replaceAll(objRepeatClone.innerHTML, token, tokenData, 'g');
+                                    elRepeatClone.innerHTML = dcg.replaceAll(elRepeatClone.innerHTML, token, tokenData, 'g');
                                 } else if (typeof tokenData === 'object') { //if the value is an object, stringify it
-                                    objRepeatClone.innerHTML = dcg.replaceAll(objRepeatClone.innerHTML, token, dcg.encodeHtml(JSON.stringify(tokenData)), 'g');
+                                    elRepeatClone.innerHTML = dcg.replaceAll(elRepeatClone.innerHTML, token, dcg.encodeHtml(JSON.stringify(tokenData)), 'g');
                                 }
                             }
                         }
                     }
-                    objRepeatCloneHtml += objRepeatClone.innerHTML; //expand the variable with the clone element that we have processed, this will be done in every loop and processed elements will be inserted after the whole iteration completes
+                    elRepeatCloneHtml += elRepeatClone.innerHTML; //expand the variable with the clone element that we have processed, this will be done in every loop and processed elements will be inserted after the whole iteration completes
                     i++;
                 }
             }
-            if (objRepeatCloneHtml != "") { //if the cloned elements are processed then insert the cloned element
-                objRepeat.insertAdjacentHTML("afterend", objRepeatCloneHtml);
+            if (elRepeatCloneHtml != "") { //if the cloned elements are processed then insert the cloned element
+                elRepeat.insertAdjacentHTML("afterend", elRepeatCloneHtml);
             }
-            objRepeat.parentNode.removeChild(objRepeat); //remove the original unprocessed element
+            elRepeat.parentNode.removeChild(elRepeat); //remove the original unprocessed element
             step_repeat(); //restart the function
         }
         step_eval();
     }
     function step_eval() { //replace all eval expressions with their corresponding data
         var i, evalExps, evalExp, evalExpPure, evalExpData;
-        evalExps = dcg.removeDuplicatesFromArray(arg.obj.innerHTML.match(dcg.regexEvalDelimiter)); //get all eval expressions from the element and remove duplicated evals
+        evalExps = dcg.removeDuplicatesFromArray(arg.el.innerHTML.match(dcg.regexEvalDelimiter)); //get all eval expressions from the element and remove duplicated evals
         for (i = 0;i < evalExps.length;i++) { //iterate through eval expressions
             evalExp = evalExps[i];
             evalExpPure = dcg.decodeHtml(evalExp.substring(dcg.profile.evalOpen.length, evalExp.length-dcg.profile.evalClose.length)); //remove the eval expression delimiters
             if (dcg.isValidJs("dcg.evalFunc = function () {return "+evalExpPure+";}") && evalExpPure.trim() != "") { //if input is valid then evaluate the input and replace it
                 window.eval("dcg.evalFunc = function () {return "+evalExpPure+";}");
                 evalExpData = dcg.evalFunc();
-                arg.obj.innerHTML = dcg.replaceAll(arg.obj.innerHTML, evalExp, evalExpData, 'g');
+                arg.el.innerHTML = dcg.replaceAll(arg.el.innerHTML, evalExp, evalExpData, 'g');
             }
         }
         step_multieval();
     }
     function step_multieval() { //replace all multi-line eval expressions with their corresponding data
         var i, evalExps, evalExp, evalExpPure, evalExpData;
-        evalExps = dcg.removeDuplicatesFromArray(arg.obj.innerHTML.match(dcg.regexEvalMultiDelimiter)); //get all multi-line eval expressions from the element and remove duplicated evals
+        evalExps = dcg.removeDuplicatesFromArray(arg.el.innerHTML.match(dcg.regexEvalMultiDelimiter)); //get all multi-line eval expressions from the element and remove duplicated evals
         for (i = 0;i < evalExps.length;i++) { //iterate through multi-line eval expressions
             evalExp = evalExps[i];
             evalExpPure = dcg.decodeHtml(evalExp.substring(dcg.profile.evalMultiOpen.length, evalExp.length-dcg.profile.evalMultiClose.length)); //remove the multi-line eval expression delimiters
             if (dcg.isValidJs("dcg.evalFunc = function () {"+evalExpPure+"}") && evalExpPure.trim() != "") { //if input is valid then evaluate the input and replace it
                 window.eval("dcg.evalFunc = function () {"+evalExpPure+"}");
                 evalExpData = dcg.evalFunc();
-                arg.obj.innerHTML = dcg.replaceAll(arg.obj.innerHTML, evalExp, evalExpData, 'g');
+                arg.el.innerHTML = dcg.replaceAll(arg.el.innerHTML, evalExp, evalExpData, 'g');
             }
         }
         step_if();
     }
     function step_if() { //recursive conditional rendering
         var objIf, ifAttr;
-        objIf = dcg.getElementByAttribute(arg.obj, dcg.profile.labelIf); //get the first element that has dcg-if attribute
+        objIf = dcg.getElementByAttribute(arg.el, dcg.profile.labelIf); //get the first element that has dcg-if attribute
         if (objIf !== false) { //if there is element with dcg-if attribute, continue
             ifAttr = dcg.decodeHtml(objIf.getAttribute(dcg.profile.labelIf));
             if (dcg.isValidJs(ifAttr) && ifAttr.trim() != "") {
@@ -578,7 +598,56 @@ dcg.displayTokens = function (arg) { //display tokens function, inputs are: arg.
             step_if(); //restart the function
         }
     }
-    return arg.obj; //return the final element
+    return arg.el; //return the final element
+};
+dcg.loadTemplate = function (arg) { //load template function, inputs are: arg.id, arg.obj, arg.el
+    var elClone, attrData, attrDataSplit;
+    if (!arg.hasOwnProperty("id")) {return false;} //if id isn't defined then stop the function
+    if (arg.hasOwnProperty("el")) { //if element is defined, check the object attribute of the defined element
+        attrData = arg.el.getAttribute(dcg.profile.labelTemplateObj);
+        if (attrData) {
+            attrDataSplit = attrData.split(".");
+            arg.obj = dcg.getRecursiveValue({arr: dcg.dataDynamic, keys: attrDataSplit, i: 0}); //recursively get the value from the data
+            if (arg.obj === false) { //check if there is an object defined on the json content
+                arg.obj = dcg.isValidJSON(attrData); //if there isn't, parse the label data
+                if (!arg.obj) {
+                    if (arg.el.getAttribute(dcg.profile.labelTemplateRef) !== null) {
+                        dcg.watchPrint('WARNING: JSON parse error on template reference labeled "'+arg.id+'"!', false);
+                    } else {
+                        dcg.watchPrint('WARNING: JSON parse error on template render labeled "'+arg.id+'"!', false);
+                    }
+                }
+            }
+        }
+    } else { //if its not defined then set it undefined
+        arg.el = undefined;
+    }
+    elClone = init_template(arg.id, arg.el).cloneNode(true); //load and clone the template
+    attrData = elClone.getAttribute(dcg.profile.labelTemplateObj); //get the referenced template's data attribute
+    if ((!arg.obj || !arg.hasOwnProperty("obj")) && attrData) { //if data is not defined previously, check if its defined on the referenced template
+        attrDataSplit = attrData.split(".");
+        arg.obj = dcg.getRecursiveValue({arr: dcg.dataDynamic, keys: attrDataSplit, i: 0}); //recursively get the value from the data
+        if (arg.obj === false) { //check if there is an object defined on the json content
+            arg.obj = dcg.isValidJSON(attrData); //if there isn't, parse the label data
+        }
+    }
+    if (arg.obj) { //if data is defined then display the tokens
+        elClone = dcg.displayTokens({obj: arg.obj, el: elClone});
+    }
+    if(dcg.renderReady){ //if render is done, escape elements
+        elClone.innerHTML = dcg.replaceEscape(elClone.innerHTML);
+    }
+    return elClone;
+    function init_template(id, el) { //load template function
+        var template;
+        if (typeof el === 'undefined' || dcg.dataTemplate.hasOwnProperty(id)) { //check if template's id exists on the stored templates or el is not defined
+            template = dcg.dataTemplate[id];
+        } else { //if el is defined and template id doesn't exist then store this new template with its id
+            template = el.cloneNode(true);
+            dcg.dataTemplate[id] = template;
+        }
+        return template; //return the template
+    }
 };
 dcg.encodeHtml = function (str) { //encode html entities function
     var i, buf = [];
@@ -629,12 +698,22 @@ dcg.replaceRoot = function (html, name) { //root tokens function
     }
     return newHtml;
 };
+dcg.isValidJSON = function (str) { //try json function
+    try {
+        var o = JSON.parse(str);
+        if (o && typeof o === "object") {
+            return o;
+        }
+    }
+    catch (e) {}
+    return false;
+};
 dcg.isValidJs = function (code) { //try eval function
     var result = true;
     try {
         eval(code);
     }
-    catch(e) {
+    catch (e) {
         result = false;
     }
     return result;
@@ -788,55 +867,22 @@ dcg.replaceAll = function (str, find, replace, options) { //replace all strings 
     }
     return str.replace(new RegExp(escapeRegExp(find), options), replace);
 };
-dcg.loadTemplate = function (arg) { //load template function, inputs are: arg.id, arg.data, arg.obj
-    var objClone, attrData, attrDataSplit;
-    if (!arg.hasOwnProperty("id")) {return false;} //if id isn't defined then stop the function
-    if (arg.hasOwnProperty("obj")) { //if obj is defined, check the data attribute of the defined element
-        attrData = arg.obj.getAttribute(dcg.profile.labelTemplateData);
-        if (attrData) {
-            attrDataSplit = attrData.split(".");
-            arg.data = dcg.getRecursiveValue({arr: dcg.dataDynamic, keys: attrDataSplit, i: 0}); //recursively get the value from the data
-            if (arg.data === false) { //check if there is an object defined on the json content
-                arg.data = JSON.parse(attrData); //if there isn't, parse the label data
-            }
-        }
-    } else { //if its not defined then set it undefined
-        arg.obj = undefined;
-    }
-    objClone = init_template(arg.id, arg.obj).cloneNode(true); //load and clone the template
-    attrData = objClone.getAttribute(dcg.profile.labelTemplateData); //get the referenced template's data attribute
-    if ((!arg.data || !arg.hasOwnProperty("data")) && attrData) { //if data is not defined previously, check if its defined on the referenced template
-        attrDataSplit = attrData.split(".");
-        arg.data = dcg.getRecursiveValue({arr: dcg.dataDynamic, keys: attrDataSplit, i: 0}); //recursively get the value from the data
-        if (arg.data === false) { //check if there is an object defined on the json content
-            arg.data = JSON.parse(attrData); //if there isn't, parse the label data
-        }
-    }
-    if (arg.data) { //if data is defined then display the tokens
-        objClone = dcg.displayTokens({data: arg.data, obj: objClone});
-    }
-    if(dcg.renderReady){ //if render is done, escape elements
-        objClone.innerHTML = dcg.replaceEscape(objClone.innerHTML);
-    }
-    return objClone;
-    function init_template(id, obj) { //load template function
-        var template;
-        if (typeof obj === 'undefined' || dcg.dataTemplate.hasOwnProperty(id)) { //check if template's id exists on the stored templates or obj is not defined
-            template = dcg.dataTemplate[id];
-        } else { //if obj is defined and template id doesn't exist then store this new template with its id
-            template = obj.cloneNode(true);
-            dcg.dataTemplate[id] = template;
-        }
-        return template; //return the template
-    }
-};
 dcg.loadContents = function (node, callback, i) { //fetch and load external contents, recursively
     if (node == null) {node = dcg.getElementsByAttribute(document.documentElement, dcg.profile.labelSource);} //if node doesn't exist then set it to document element and get the elements with source attribute
     if (i == null) {i = 0;} //if index doesn't exist, set it to 0
     var src, len = node.length;
     if (len > 0 && i < len) { //if there are elements with source attributes and index is lower than total elements, continue
-        src = node[i].getAttribute(dcg.profile.labelSource); //get the source attribute's value
+        src = node[i].getAttribute(dcg.profile.labelSource);
+        method = node[i].getAttribute(dcg.profile.labelSourceMet);
+        data = node[i].getAttribute(dcg.profile.labelSourceObj);
         if (src != "") { //if source is not empty, fetch the content and insert it into element then increase the index and run the function again
+            if (data) {
+                data = dcg.isValidJSON(data);
+                if (!data) {
+                    dcg.watchPrint('WARNING: JSON parse error on the "'+dcg.profile.labelSourceObj+'" parameter!', false);
+                    data = "";
+                }
+            }
             dcg.xhr(src, function (xhr) {
                 if (xhr.readyState == 4) {
                     if (xhr.status == 200) {
@@ -846,7 +892,7 @@ dcg.loadContents = function (node, callback, i) { //fetch and load external cont
                 }
                 i++;
                 dcg.loadContents(node, callback, i);
-            });
+            }, method, data);
         }
     } else { //if there are no elements or index is higher than total elements, run the callback function
         if (typeof callback !== 'undefined') {
@@ -902,9 +948,54 @@ dcg.loadScriptsNS = function (node, callback, i) { //inject scripts from specifi
         }
     }
 };
-dcg.xhr = function (url, callback, cache, method, async) { //xhr function used for fetching external contents, scripts and templates
-    if (cache == null) {cache = dcg.profile.cacheRender;}
+dcg.getUrlParams = function (url) { //get query parameters from url
+    var i, result = {}, queryString, keyValuePairs, keyValuePair, paramName, paramValue;
+    queryString = getQueryString();
+    if (queryString) {
+        keyValuePairs = queryString.split('&');
+        for (i = 0; i < keyValuePairs.length; i++) {
+            keyValuePair = keyValuePairs[i].split('=');
+            paramName = keyValuePair[0];
+            if (keyValuePair[1]) {
+                paramValue = keyValuePair[1];
+            } else {
+                paramValue = '';
+            }
+            result[paramName] = decodeURIComponent(paramValue.replace(/\+/g, ' '));
+        }
+    }
+    function getQueryString () {
+        var reducedUrl, queryString;
+        reducedUrl = url.split('#')[0];
+        queryString = reducedUrl.split('?')[1];
+        if (!queryString) {
+            if (reducedUrl.search('=') !== false) {
+                queryString = reducedUrl;
+            }
+        }
+        return queryString
+    }
+    return result;
+};
+dcg.urlEncode = function (obj) { //convert array of values into query string
+    var key, result;
+    if (typeof obj === 'object') {
+        result = [];
+        for (key in obj) {
+            if (obj.hasOwnProperty(key)) {
+                result.push(key + '=' + encodeURIComponent(obj[key]));
+            }
+        }
+        result = result.join('&');
+    } else {
+        result = obj;
+    }
+    return result;
+};
+dcg.xhr = function (url, callback, method, obj, cache, async) { //xhr function used for fetching external contents, scripts and templates
     if (method == null) {method = 'GET';}
+    if (obj == null) {obj = '';}
+    if (cache == null) {cache = dcg.profile.cacheRender;}
     if (async == null) {async = true;}
     var xhr, guid, cacheUrl, hashUrl;
     method = method.toUpperCase();
@@ -922,16 +1013,24 @@ dcg.xhr = function (url, callback, cache, method, async) { //xhr function used f
         hashUrl = ((/\?/).test(cacheUrl) ? "&" : "?") + "_=" + (guid++) + hashUrl;
         url = cacheUrl + hashUrl;
     }
+    if (method == 'GET' && obj != '') {
+        url = url.split(/[?#]/)[0]+'?'+dcg.urlEncode(dcg.mergeDeep(dcg.getUrlParams(url), obj));
+    }
     xhr.open(method, url, async);
-    xhr.send();
+    if (method == 'GET') {
+        xhr.send();
+    } else {
+        xhr.setRequestHeader("Content-type", "application/x-www-form-urlencoded");
+        xhr.send(dcg.urlEncode(obj));
+    }
 };
 dcg.DOMLoad = function () { //imitate window onload and dispatch custom onload events
     var i;
     document.dispatchEvent(new CustomEvent('DOMContentLoaded'));
     window.dispatchEvent(new CustomEvent('DOMContentLoaded'));
     window.dispatchEvent(new CustomEvent('load'));
-    for (i = 0; i < dcg.profile.onload.length; i++) {
-        dcg.profile.onload[i].node.dispatchEvent(new CustomEvent(dcg.profile.onload[i].name));
+    for (i = 0; i < dcg.profile.onloadEvents.length; i++) {
+        dcg.profile.onloadEvents[i].node.dispatchEvent(new CustomEvent(dcg.profile.onloadEvents[i].name));
     }
 };
 dcg.DOMEval = function (code) { //script injection function

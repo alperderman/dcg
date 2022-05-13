@@ -1,0 +1,136 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="x-ua-compatible" content="ie=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DCG | Design</title>
+    <link rel="stylesheet" href="../../css/markdown.css">
+  </head>
+  <body style="background-color:whitesmoke;">
+    <div class="col-12 lg:col-10 lg:offset-1 px-3 my-5 markdown">
+
+      <!--inserting a dynamic content (token) inside an escaped element-->
+      <h2>Token Inside An Escaped Element</h2>
+      <br>
+      <dcg:h3>{{htmlTitle}}</dcg:h3>
+      <hr>
+
+      <!--raw html contents that is defined on the design.html-->
+      <h2>Raw HTML Content</h2>
+      <br>
+      <p>and this paragraph is written directly in the design.html</p>
+      <hr>
+
+      <!--repeating and inserting navbar menus that is defined as json on index.html-->
+      <h2>Repeating Navigation Bar</h2>
+      <br>
+      <div style="width:100%;height:auto;background-color:#ccc;">
+        <ul style="display: inline-block;margin: 0;">
+          <dcg dcg-repeat="dynamicData.navbar.menu as menu">
+            <li style="display: inline-block;border-right: 1px solid #333;padding:1em;"><a href="{{menu.href}}">{{menu.title}}</a></li>
+          </dcg>
+        </ul>
+      </div>
+      <hr>
+
+      <!--inserting the html content, nested into the json content-->
+      <h2>Nested Token</h2>
+      <br>
+      {{dynamicData.nestedHtml}}
+      <hr>
+      
+      <!--using of the keywords-->
+      <h2>Token Keywords</h2>
+      <br>
+      {{dynamicData.object1._this}}<br> <!--returns the object itself-->
+      {{dynamicData._key}}<br> <!--returns the key of the object-->
+      {{dynamicData._length}}<br> <!--returns the total length of the object-->
+      <hr>
+      
+      <!--render elements based on condition, don't forget to add extra quotes around the tokens if you are doing a string comparison-->
+      <h2>Conditional Rendering</h2>
+      <br>
+      <dcg dcg-if="{{dynamicData.condition}}">
+        <p style="color:darkblue;">The condition is true</p>
+      </dcg>
+
+      <dcg dcg-if="!{{dynamicData.condition}}">
+        <p style="color: darkred;">The condition is false</p>
+      </dcg>
+      <hr>
+
+      <h2>Eval Expressions</h2>
+      <br>
+
+      <!--using eval expression to sum 2 numbers-->
+      <p>Sum of {{dynamicData.sum1}} and {{dynamicData.sum2}} is {% {{dynamicData.sum1}}+{{dynamicData.sum2}} %}</p>
+
+      <!--using multi-line eval expression to substract 2 numbers (you have to define return on multi-line eval expressions)-->
+      <p>Difference of {{dynamicData.sum1}} and {{dynamicData.sum2}} is 
+        {!%
+          var result = {{dynamicData.sum1}}-{{dynamicData.sum2}};
+          return result;
+        %!}
+      </p>
+      <hr>
+
+      <h2>Templates</h2>
+      <br>
+
+      <!--referencing an external template and defining a default json content with dcg-tobj that can only be used inside the template-->
+      <dcg dcg-temp="temple" dcg-tobj='{"foo": "bar"}' dcg-tref>
+        <dcg dcg-src="template.html" dcg-spre></dcg>
+      </dcg>
+
+      <!--rendering the previously referenced template and changing the default dataset with dcg-tobj attribute-->
+      <dcg dcg-temp="temple" dcg-tobj='{"foo": "notbar", "card2": {"Color": "#ae5"}}' dcg-tren></dcg>
+      <br>
+
+      <!--rendering a template with javascript (the js code is on the below)-->
+      <div id="loadTemp"></div>
+      <hr>
+
+      <!--complex example with using multiple nested dcg-repeats, tokens, templates, conditional rendering, escaped elements and eval expressions-->
+      <h2>Complex Examples</h2>
+      <br>
+      <dcg dcg-repeat="base.customers.data as card">
+
+        <dcg dcg-repeat="card.tags as tag">
+          <dcg dcg-if="'{{tag}}' != 'HTML' && '{{tag}}' != 'JS'">
+            <span>{{tag}}</span>
+          </dcg>
+        </dcg>
+        <br>
+        <span>{%{{card._index}}+1%} - {{card.CustomerName}}</span>
+        <dcg dcg-if="{{card.grade}} >= 50">
+          <span style="color:green;">{{card.grade}} - PASS</span>
+        </dcg>
+        <dcg dcg-if="{{card.grade}} < 50">
+          <span style="color:red;">{{card.grade}} - FAIL</span>
+        </dcg>
+        {{card.divdesc}}
+        <br>
+
+      </dcg>
+
+      <dcg dcg-repeat="base.customers.data as card2">
+
+        <dcg dcg-temp="temple" dcg-tobj='{"foo": "bar"}' dcg-tren dcg-tpre></dcg>
+
+      </dcg>
+      <hr>
+
+    </div>
+
+    <!--dynamically loading a template named "temple" with loadTemplate function and inserting into the indicated element-->
+    <script>document.getElementById("loadTemp").innerHTML = dcg.loadTemplate({id:"temple", obj: {"foo": "notbar", "card2": {"Color": "#ea5"}}}).innerHTML;</script>
+    
+    <!--custom load event for "onload" preset option-->
+    <script>
+      window.addEventListener('testloadevent', function() {
+        console.log("testing a custom load event!");
+      });
+    </script>
+  </body>
+</html>
