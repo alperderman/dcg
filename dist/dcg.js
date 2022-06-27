@@ -1,5 +1,5 @@
 /*!
-* Dynamic Content Generation (2.0.0) 2022/05/09
+* Dynamic Content Generation (2.0.1) 2022/06/27
 */
 
 //polyfills
@@ -14,7 +14,7 @@ if (!Object.values) { Object.values = function values(obj) { var res = []; for (
 if (typeof window.CustomEvent !== 'function') { window.CustomEvent = function (event, params) { params = params || {bubbles: false, cancelable: false, detail: null}; var evt = document.createEvent('CustomEvent'); evt.initCustomEvent(event, params.bubbles, params.cancelable, params.detail); return evt; }; }
 
 var dcg = {}; //main object
-dcg.version = "2.0.0"; //version number
+dcg.version = "2.0.1"; //version number
 dcg.logPrefix = "[DCG] "; //log prefix
 dcg.default = { //default presets
     labelObj: "dcg-obj", //dynamic content attribute
@@ -639,10 +639,24 @@ dcg.loadTemplate = function (arg) { //load template function, inputs are: arg.id
     }
     return elClone;
     function init_template(id, el) { //load template function
-        var template;
+        var template, elStyles, newStyle;
         if (typeof el === 'undefined' || dcg.dataTemplate.hasOwnProperty(id)) { //check if template's id exists on the stored templates or el is not defined
             template = dcg.dataTemplate[id];
-        } else { //if el is defined and template id doesn't exist then store this new template with its id
+        } else { //if el is defined and template id doesn't exist then extract the styles and store this new template with its id
+            elStyles = "";
+            while (el.getElementsByTagName('style').length > 0) {
+                elStyles += el.getElementsByTagName('style')[0].innerHTML;
+                el.getElementsByTagName('style')[0].parentNode.removeChild(el.getElementsByTagName('style')[0]);
+            }
+            if (elStyles != "") {
+                if (document.head.getElementsByTagName('style')[0]) {
+                    document.head.getElementsByTagName('style')[0].innerHTML += elStyles;
+                } else {
+                    newStyle = document.createElement('style');
+                    newStyle.innerHTML = elStyles;
+                    document.head.appendChild(newStyle);
+                }
+            }
             template = el.cloneNode(true);
             dcg.dataTemplate[id] = template;
         }

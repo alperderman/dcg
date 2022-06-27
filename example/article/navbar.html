@@ -1,0 +1,25 @@
+<style>
+    .navbar {
+      width:100%;
+      height:auto;
+    }
+    .navbar ul {
+      display: inline-block;
+      margin: 0;
+    }
+    .navbar li {
+      display: inline-block;
+      text-decoration: underline;
+      padding:1em;
+    }
+    .navbar li a {
+      color:#333;
+    }
+</style>
+<div class="navbar border-bottom">
+    <ul>
+        <dcg dcg-repeat="_this.menu as menu">
+            <li><a href="{{menu.href}}">{{menu.title}}</a></li>
+        </dcg>
+    </ul>
+</div>

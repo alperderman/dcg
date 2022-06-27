@@ -4,46 +4,34 @@
     <meta charset="utf-8">
     <meta http-equiv="x-ua-compatible" content="ie=edge">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>DCG | Design</title>
     <link rel="stylesheet" href="../../css/markdown.css">
-    <style>
-      .navbar {
-        width:100%;
-        height:auto;
-      }
-      .navbar ul {
-        display: inline-block;
-        margin: 0;
-      }
-      .navbar li {
-        display: inline-block;
-        text-decoration: underline;
-        padding:1em;
-      }
-      .navbar li a {
-        color:#333;
-      }
-    </style>
   </head>
   <body style="background-color:whitesmoke;">
+
+    <dcg dcg-temp="navbar" dcg-tref>
+      <div dcg-src="navbar.html" dcg-spre></div>
+    </dcg>
+
+    <dcg dcg-temp="card" dcg-tref>
+      <div dcg-src="card.html" dcg-spre></div>
+    </dcg>
+
+    <dcg dcg-temp="sidebar" dcg-tref>
+      <div dcg-src="sidebar.html" dcg-spre></div>
+    </dcg>
+
     <div class="col-12 lg:col-10 lg:offset-1 px-3 my-5 markdown">
 
       <div class="d-flex flex-items-center flex-justify-center border-bottom">
-        <h1 class="border-0 m-0">Header</h1>
+        <h1 class="border-0 m-0">{{navbar.header}}</h1>
       </div>
 
       <!--repeating and inserting navbar menus that is defined as xml on index.html-->
-      <div class="navbar border-bottom">
-        <ul>
-          <dcg dcg-repeat="dynamicData.navbar.menu as menu">
-            <li><a href="{{menu.href}}">{{menu.title}}</a></li>
-          </dcg>
-        </ul>
-      </div>
+      <dcg dcg-temp="navbar" dcg-tobj="navbar" dcg-tren></dcg>
 
       <div class="bg-gray-dark text-white p-6">
-        <h1 class="text-italic border-0 m-0">Title of a longer featured blog post</h1>
-        <p>Multiple lines of text that form the lede, informing new readers quickly and efficiently about what’s most interesting in this post’s contents.</p>
+        <h1 class="text-italic border-0 m-0">{{post.abstract.title}}</h1>
+        <p>{{post.abstract.desc}}</p>
         <a href="#" class="text-white text-decoration-underline">Continue reading...</a>
       </div>
       <hr>
@@ -56,10 +44,10 @@
       <hr>
       <div class="row gutter-2">
         <div class="column col-12 lg:col-8">
-          {{content}}
+          {{post.content}}
         </div>
         <div class="column col-12 lg:col-4">
-          {{sidebar}}
+          <dcg dcg-temp="sidebar" dcg-tobj="sidebar" dcg-tren></dcg>
         </div>
       </div>
     </div>

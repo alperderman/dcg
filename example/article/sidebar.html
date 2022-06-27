@@ -1,0 +1,20 @@
+<div class="p-4 bg-light">
+    <h2>About</h2>
+    <p class="mb-0">{{_this.about}}</p>
+  </div>
+  <div class="p-4">
+    <h2>Archives</h2>
+    <ol class="list-unstyled">
+        <dcg dcg-repeat="_this.archives as menu">
+            <li><a href="{{menu.href}}">{{menu.title}}</a></li>
+        </dcg>
+    </ol>
+  </div>
+  <div class="p-4">
+    <h2>Elsewhere</h2>
+    <ol class="list-unstyled">
+        <dcg dcg-repeat="_this.elsewhere as menu">
+            <li><a href="{{menu.href}}">{{menu.title}}</a></li>
+        </dcg>
+    </ol>
+</div>
