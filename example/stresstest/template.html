@@ -1,10 +1,15 @@
+<div test="{{Color}}" class="card" dcg:style="background-color:{{Color}};">
+  {{Color}} - {{foobar.foo}}
+</div>
+<link rel="stylesheet" href="card.css">
 <style>
   .card {
-    color:white;
-    width:100px;
     height:100px;
   }
 </style>
-<div test="{{card2.Color}}" class="card" dcg:style="background-color:{{card2.Color}};">
-  {{card2.Color}} - {{foo}}
-</div>
+<dcg:style>
+  .card {
+    color:{{dynamicdata.temptextcolor}};
+  }
+</dcg:style>
+<script>console.log("injecting scripts via external template!");</script>

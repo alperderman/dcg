@@ -5,11 +5,17 @@
     <meta http-equiv="x-ua-compatible" content="ie=edge">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link rel="stylesheet" href="../../css/markdown.css">
+    <style>
+      h2 {
+        color:#555;
+      }
+    </style>
   </head>
   <body style="background-color:whitesmoke;">
     <div class="col-12 lg:col-10 lg:offset-1 px-3 my-5 markdown">
 
       <!--inserting a dynamic content (token) inside an escaped element-->
+      <h1>Dynamic Content Generation {{$version}}</h1>
       <h2>Token Inside An Escaped Element</h2>
       <br>
       <dcg:h3>{{htmlTitle}}</dcg:h3>
@@ -77,13 +83,11 @@
       <h2>Templates</h2>
       <br>
 
-      <!--referencing an external template and defining a default json content with dcg-tobj that can only be used inside the template-->
-      <dcg dcg-temp="temple" dcg-tobj='{"foo": "bar"}' dcg-tref>
-        <dcg dcg-src="template.html" dcg-spre></dcg>
-      </dcg>
+      <!--referencing an external template inside an external content-->
+      <dcg dcg-src="ex.html"></dcg>
 
       <!--rendering the previously referenced template and changing the default dataset with dcg-tobj attribute-->
-      <dcg dcg-temp="temple" dcg-tobj='{"foo": "notbar", "card2": {"Color": "#ae5"}}' dcg-tren></dcg>
+      <dcg dcg-temp="temple" dcg-tobj='{"Color": "#ae5"}' dcg-tren></dcg>
       <br>
 
       <!--rendering a template with javascript (the js code is on the below)-->
@@ -114,20 +118,23 @@
       </dcg>
 
       <dcg dcg-repeat="base.customers.data as card2">
-
-        <dcg dcg-temp="temple" dcg-tobj='{"foo": "bar"}' dcg-tren dcg-tpre></dcg>
-
+        <!--defining the template's dataset with index keyword-->
+        <dcg dcg-temp="temple" dcg-tobj='base.customers.data.{{card2._index}}' dcg-tren></dcg>
       </dcg>
       <hr>
-      <a target="_blank" href="healthy_201.png"><button>CROSS CHECK HEALTHY TEST RESULT IMAGE</button></a>
+      <a class="btn" target="_blank" href="dcg202.png">COMPARE WITH HEALTHY TEST RESULT</a>
     </div>
 
     <!--dynamically loading a template named "temple" with loadTemplate function and inserting into the indicated element-->
-    <script>document.getElementById("loadTemp").innerHTML = dcg.loadTemplate({id:"temple", obj: {"foo": "notbar", "card2": {"Color": "#ea5"}}}).innerHTML;</script>
+    <script>
+      dcg.loadTemplate({id:"temple", obj: {"Color": "#ea5"}}, function (template) {
+        document.getElementById("loadTemp").innerHTML = template.innerHTML;
+      });
+    </script>
     
     <!--custom load event for "onload" preset option-->
     <script>
-      window.addEventListener('testloadevent', function() {
+      window.addEventListener('testloadevent', function () {
         console.log("testing a custom load event!");
       });
     </script>

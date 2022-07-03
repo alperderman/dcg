@@ -4,14 +4,14 @@
     <meta charset="utf-8">
     <meta http-equiv="x-ua-compatible" content="ie=edge">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>DCG | Example Stress Test</title>
+    <title>DCG | Stress Test</title>
   </head>
   <body>
     <!--custom screen block definition-->
     <div style='position:fixed;top:0;left:0;z-index:99;width:100vw;height:100vh;background-color:#ffffff;' dcg-screen>Loading...</div>
 
     <!--basic json content definition-->
-    <div dcg-obj="dynamicData" dcg-json>{"object1": {"numbers": "123"}, "title": "Generation", "condition": "true", "sum1": "65", "sum2": "43"}</div>
+    <div dcg-obj="dynamicData" dcg-json>{"object1": {"numbers": "123"}, "title": "Generation", "condition": "true", "sum1": "65", "sum2": "43", "temptextcolor":"#fff"}</div>
     
     <!--expanding the previously defined json content-->
     <div dcg-obj="dynamicData.object1" dcg-json>{"filler" : "lorem ipsum"}</div>
@@ -69,7 +69,7 @@
 
     <!--external json content-->
     <div dcg-obj="extJson" dcg-json>
-      <dcg dcg-src="https://reqbin.com/echo/get/json?search=item&type=red" dcg-spre dcg-smet="GET" dcg-sobj='{"foo":"bar", "page":"33"}'></dcg>
+      <dcg dcg-src="https://reqbin.com/echo/get/json?search=item&type=red" dcg-smet="GET" dcg-sobj='{"foo":"bar", "page":"33"}'></dcg>
     </div>
 
     <script src="../../dist/dcg.js"></script>
