@@ -1,5 +1,5 @@
 /*!
-* Dynamic Content Generation (2.0.2) 2022/07/02
+* Dynamic Content Generation (2.0.3) 2022/07/17
 */
 
 //polyfills
@@ -14,7 +14,7 @@ if (!Object.values) { Object.values = function values(obj) { var res = []; for (
 if (typeof window.CustomEvent !== 'function') { window.CustomEvent = function (event, params) { params = params || {bubbles: false, cancelable: false, detail: null}; var evt = document.createEvent('CustomEvent'); evt.initCustomEvent(event, params.bubbles, params.cancelable, params.detail); return evt; }; }
 
 var dcg = {}; //main object
-dcg.version = "2.0.2"; //version number
+dcg.version = "2.0.3"; //version number
 dcg.logPrefix = "[DCG] "; //log prefix
 dcg.default = { //default presets
     labelObj: "dcg-obj", //dynamic content attribute
@@ -412,14 +412,20 @@ dcg.renderDesign = function (arg) { //main render function, inputs are: arg.cont
         arg.content.body.innerHTML = dcg.replaceEscape(arg.content.body.innerHTML);
         dcg.renderReady = true;
         dcg.watchPrintSplit("Elements are escaped and remnants are removed!");
-        step_inject();
+        step_styles();
     }
-    function step_inject() { //reload styles and inject the scripts
+    function step_styles() { //reload the styles
         var i, links = document.getElementsByTagName("link"), link;
         for (i = 0; i < links.length;i++) {
             link = links[i];
             link.href = link.href;
         }
+        dcg.watchPrintSplit("Styles are reloaded!");
+        setTimeout(function () { //skip an execution frame so that styles are loaded before scripts
+            step_inject();
+        }, 0);
+    }
+    function step_inject() { //inject the scripts
         dcg.loadScripts(dcg.profile.injectScripts, function () { //load the external scripts
             if (dcg.profile.injectScripts.length > 0) {
                 dcg.watchPrintSplit("External scripts are injected!");
@@ -1098,7 +1104,9 @@ dcg.getScript = function (url, callback) { //external script injection function
                 dcg.DOMEval(xhr.responseText);
             }
             if (typeof callback !== 'undefined') { //skip an execution frame and run callback function if its defined
-                setTimeout(function () {callback(xhr)}, 0);
+                setTimeout(function () {
+                    callback(xhr)
+                }, 0);
             }
         }
     });
