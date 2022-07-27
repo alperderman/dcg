@@ -1,5 +1,5 @@
 /*!
-* Dynamic Content Generation (2.0.3) 2022/07/17
+* Dynamic Content Generation (2.0.4) 2022/07/27
 */
 
 //polyfills
@@ -14,7 +14,7 @@ if (!Object.values) { Object.values = function values(obj) { var res = []; for (
 if (typeof window.CustomEvent !== 'function') { window.CustomEvent = function (event, params) { params = params || {bubbles: false, cancelable: false, detail: null}; var evt = document.createEvent('CustomEvent'); evt.initCustomEvent(event, params.bubbles, params.cancelable, params.detail); return evt; }; }
 
 var dcg = {}; //main object
-dcg.version = "2.0.3"; //version number
+dcg.version = "2.0.4"; //version number
 dcg.logPrefix = "[DCG] "; //log prefix
 dcg.default = { //default presets
     labelObj: "dcg-obj", //dynamic content attribute
@@ -97,7 +97,7 @@ dcg.config = function (options) { //function for setting custom presets
 };
 dcg.reset = function () { //function for resetting the presets to their default values
     dcg.renderDom = false;
-    dcg.profile = dcg.mergeDeep(dcg.default);
+    dcg.profile = dcg.mergeDeep(dcg.default, dcg.profile);
     dcg.reconstruct();
 };
 dcg.reconstruct = function () { //function for reconstructing the presets
@@ -332,9 +332,11 @@ dcg.renderDesign = function (arg) { //main render function, inputs are: arg.cont
         }
     }
     function step_ext(print, callback) { //load the external contents and then continue to render
-        dcg.loadContents(function () {
-            dcg.watchPrintSplit(print);
-            callback();
+        dcg.loadContents(document.head, function () {
+            dcg.loadContents(document.body, function () {
+                dcg.watchPrintSplit(print);
+                callback();
+            });
         });
     }
     function step_storedynamic(print, callback) { //store the dynamic contents
@@ -927,9 +929,9 @@ dcg.replaceAll = function (str, find, replace, options) { //replace all strings 
     }
     return str.replace(new RegExp(escapeRegExp(find), options), replace);
 };
-dcg.loadContents = function (callback) { //fetch and load external contents, recursively
+dcg.loadContents = function (el, callback) { //fetch and load external contents, recursively
     var src, method, data;
-    node = dcg.getElementByAttribute(document.body, dcg.profile.labelSource);
+    node = dcg.getElementByAttribute(el, dcg.profile.labelSource);
     if (node !== false) {
         src = node.getAttribute(dcg.profile.labelSource);
         method = node.getAttribute(dcg.profile.labelSourceMet);
@@ -949,7 +951,7 @@ dcg.loadContents = function (callback) { //fetch and load external contents, rec
                         node.parentNode.removeChild(node);
                     }
                 }
-                dcg.loadContents(callback);
+                dcg.loadContents(el, callback);
             }, method, data);
         }
     } else { //if there are no elements or index is higher than total elements, run the callback function
