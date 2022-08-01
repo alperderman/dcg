@@ -1,0 +1,592 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="x-ua-compatible" content="ie=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DCG | Documentation</title>
+  </head>
+  <body>
+    
+    <div dcg-obj="header" dcg-json>
+      {
+        "title": "Dynamic Content Generation",
+        "sub": "documentation",
+        "btn": {
+          "github": "https://github.com/alperderman/dcg"
+        }
+      }
+    </div>
+    <div dcg-obj="content" dcg-json>
+      {
+        "introduction": {"title": "Introduction"},
+        "start": {"title": "Getting Started"},
+        "parameters": {"title": "Render Parameters"},
+        "presets": {"title": "Preset Options"},
+        "dynamic": {"title": "Dynamic Contents"},
+        "keywords": {"title": "Token Keywords"},
+        "roots": {"title": "Root Tokens"},
+        "escapetokens": {"title": "Escaping Tokens"},
+        "escapeelements": {"title": "Escaping Elements"},
+        "templates": {"title": "Templates"},
+        "external": {"title": "External Contents"},
+        "eval": {"title": "Eval Expressions"},
+        "conditional": {"title": "Conditional Rendering"},
+        "screen": {"title": "Screen Block"},
+        "singlepage": {"title": "Single Page Renders"},
+        "support": {"title": "Browser Support"}
+      }
+    </div>
+    <div dcg-obj="content.introduction.desc" dcg-html>
+      <section id="{{_this._key}}">
+        <h1>{{_this.title}}</h1>
+        <p>DCG is a javascript framework that aims for content management.</p>
+        <p>DCG is vastly different from other frameworks. The main difference is, contents and layouts are splitted from each other on DCG and most of the features and objects are defined with simple HTML elements. In addition to that, DCG works like a preprocessing intrepreter, so it can be use it with other frameworks but the formation and the structure of your projects, must be coherent with DCG.</p>
+        <p>DCG basically stitches the content and the layout together then generates and renders the final result. Since the contents and designs are completely seperate entities, it allows us to re-use the same contents or same designs on a different page thus reduces the code duplication, but as a trade-off it increases the page load time because of the extra XHR calls.</p>
+        <p>One other advantage is; DCG solves the SEO problem, since you define your contents of the page with pure HTML and contents are there before the render occurs, web crawlers can index these contents.</p>
+      </section>
+    </div>
+    <div dcg-obj="content.start.desc" dcg-html>
+      <section id="{{_this._key}}">
+        <h1>{{_this.title}}</h1>
+        <p>In order to use DCG, just download it from <a target="_blank" href="https://raw.githubusercontent.com/alperderman/dcg/main/dist/dcg.js">Github</a> and create two HTML files, one for the contents and one for the design like in the below and run it on your local web server.</p>
+        <p>You can also check out the example inside the GitHub repository.</p>
+        <div class="row lg:gutter-2 mb-6">
+          <div class="column col-12 lg:col-6">
+            <h3 class="mt-0">content.html (the main page)</h3>
+            <pre><code class="language-html">
+              &lt;body>
+
+                &lt;div dcg-obj="hello">Hello World!&lt;/div>
+
+                &lt;script src="path/to/dcg.js">&lt;/script>
+                &lt;script>
+                  dcg.render({
+                    designSrc: "path/to/design.html"
+                  });
+                &lt;/script>
+              &lt;/body>
+            </code></pre>
+          </div>
+          <div class="column col-12 lg:col-6">
+            <h3 class="mt-0">design.html</h3>
+            <pre><code class="language-html">
+              &lt;body>
+                &lt;h1>{{##hello}}&lt;/h1>
+              &lt;/body>
+            </code></pre>
+          </div>
+        </div>
+        <p><code>designSrc</code> indicates the path of the <code>design.html</code>.</p>
+      </section>
+    </div>
+    <div dcg-obj="content.parameters.desc" dcg-html>
+      <section id="{{_this._key}}">
+        <h1>{{_this.title}}</h1>
+        <p>Parameters of the <code>render()</code> function and their explanations.</p>
+        <table>
+          <thead>
+            <tr>
+              <th>Parameter Name</th>
+              <th>Description</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr><td><b>content</b></td><td>Parameter for defining content, you can set the content as string or an HTML element, if isn't defined then DCG checks for the <code>contentSrc</code> parameter for external content</td></tr>
+            <tr><td><b>contentSrc</b></td><td>Parameter for defining external content, if it is not defined then sets the content as the current document</td></tr>
+            <tr><td><b>design</b></td><td>Parameter for defining design, you can set the design as string, if isn't defined then DCG checks for the <code>designSrc</code> parameter for external design</td></tr>
+            <tr><td><b>designSrc</b></td><td>Parameter for defining external design, if it is not defined then sets the content as the current design and render occurs on the same page. Read the <b>Single Page Renders</b> section for more details</td></tr>
+            <tr><td><b>before()</b></td><td>Function parameter for defining a function that will run before the render, usually not needed but included for the sake of consistency</td></tr>
+            <tr><td><b>after()</b></td><td>Function parameter for defining a function that will run after the render</td></tr>
+            <tr><td><b>options</b></td><td>Parameter for the preferences, explained on the <b>Preset Options</b> section</td></tr>
+          </tbody>
+        </table>
+      </section>
+    </div>
+    <div dcg-obj="content.presets.desc" dcg-html>
+      <section id="{{_this._key}}">
+        <h1>{{_this.title}}</h1>
+        <p>Preset options are a set of preferences that will be used while rendering.</p>
+        <table>
+          <thead>
+            <tr>
+              <th>Option Definition</th>
+              <th>Description</th>
+              <th>Default Value</th>
+              <th>Type</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr><td><b>cacheRender</b></td><td>For caching the render, changing it to <code>false</code> is highly recommended for development</td><td>true</td><td>Boolean</td></tr>
+            <tr><td><b>showLogs</b></td><td>For showing the render logs</td><td>false</td><td>Boolean</td></tr>
+            <tr><td><b>screenBlock</b></td><td>For blocking the screen during the render, check out the <b>Screen Block</b> section for more details</td><td>true</td><td>Boolean</td></tr>
+            <tr><td><b>replaceHead</b></td><td>for whether if head of the content is appended or replaced completely by the design's head</td><td>false</td><td>Boolean</td></tr>
+            <tr><td><b>injectScripts</b></td><td>For injecting external scripts</td><td>[]</td><td>Array of strings / string</td></tr>
+            <tr><td><b>onloadEvents</b></td><td>For defining custom onload events that will be dispatched after imitating window onload event</td><td>[]</td><td>Array of objects</td></tr>
+          </tbody>
+        </table>
+        <p>Preset options are stored in <code>dcg.profile</code> object and you can use the <code>options</code> parameter inside the render function to change the options.</p>
+        <div class="row lg:gutter-2 mb-6">
+          <div class="column col-12 lg:col-6">
+            <h3 class="mt-0">content.html</h3>
+            <pre><code class="language-html">
+              &lt;script src="path/to/dcg.js">&lt;/script>
+              &lt;script>
+                dcg.render({
+                  designSrc: "path/to/design.html",
+                  options: {
+                    showLogs: true,
+                    cacheRender: false,
+                    screenBlock: false,
+                    replaceHead: true,
+                    injectScripts: ["script1.js", "../script2.js"],
+                    onloadEvents: [{node: window, name: "customevent1"}, {node: document, name: "customevent2"}]
+                  }
+                });
+              &lt;/script>
+            </code></pre>
+          </div>
+        </div>
+      </section>
+    </div>
+    <div dcg-obj="content.dynamic.desc" dcg-html>
+      <section id="{{_this._key}}">
+        <h1>{{_this.title}}</h1>
+        <p>Dynamic contents are simple objects that can be used as tokens (in a way that you cannot change it after the render, kinda like a non-reactive version of Vue's data object). Dynamic contents are seperated into 3 categories; JSON, HTML and raw text.</p>
+        <p>You can use other tokens inside raw and HTML dynamic contents and in addition to that you can nest JSON and raw tokens, this enables us to do complicated processes with ease.</p>
+        <p>There is only a slight difference between raw and HTML types; you can't nest other tokens inside HTML tokens, but in return you can use <b>token keywords</b> (explained right after this section) of the object that encapsulates the HTML token.</p>
+        <div class="row lg:gutter-2 mb-6">
+          <div class="column col-12 lg:col-6">
+            <h3 class="mt-0">content.html</h3>
+            <pre><code class="language-html">
+              &lt;body>
+
+                &lt;div dcg-obj="fruits" dcg-json>
+                  ["Apple", "Grapes"]
+                &lt;/div>
+
+                &lt;div dcg-obj="fruits.2">Strawberry&lt;/div>
+
+                &lt;div dcg-obj="names" dcg-json>
+                  ["Dave", "Jeffrey", "Marcus"]
+                &lt;/div>
+
+                &lt;div dcg-obj="names.description" dcg-html>
+                  &lt;p>Our team; {{##names.0}}, {{##names.1}}, {{##names.2}}&lt;/p>
+                &lt;/div>
+
+                &lt;div dcg-obj="names.raw">
+                  This is a raw text it will not processed like the other tokens on the above!
+                &lt;/div>
+
+                &lt;script src="path/to/dcg.js">&lt;/script>
+                &lt;script>
+                  dcg.render({
+                    designSrc: "path/to/design.html"
+                  });
+                &lt;/script>
+              &lt;/body>
+            </code></pre>
+          </div>
+          <div class="column col-12 lg:col-6">
+            <h3 class="mt-0">design.html</h3>
+            <pre><code class="language-html">
+              &lt;body>
+                &lt;h3>{{##fruits.0}}&lt;/h3>
+                &lt;h3>{{##fruits.1}}&lt;/h3>
+                &lt;h3>{{##fruits.2}}&lt;/h3>
+                &lt;hr>
+                &lt;h3>{{##names.0}}&lt;/h3>
+                &lt;h3>{{##names.1}}&lt;/h3>
+                &lt;h3>{{##names.2}}&lt;/h3>
+                &lt;hr>
+                {{##names.description}}
+              &lt;/body>
+            </code></pre>
+          </div>
+        </div>
+        <p>And for iterating a certain object or array, you can use the <code>dcg-repeat</code> attribute.</p>
+        <div class="row lg:gutter-2 mb-6">
+          <div class="column col-12 lg:col-6">
+            <h3 class="mt-0">content.html</h3>
+            <pre><code class="language-html">
+              &lt;div dcg-obj="names" dcg-json>
+                ["Dave", "Jeffrey", "Marcus"]
+              &lt;/div>
+            </code></pre>
+          </div>
+          <div class="column col-12 lg:col-6">
+            <h3 class="mt-0">design.html</h3>
+            <pre><code class="language-html">
+              &lt;dcg dcg-repeat="names as customer">
+                &lt;h3>{{##customer}}&lt;/h3>
+              &lt;/dcg>
+            </code></pre>
+          </div>
+        </div>
+      </section>
+    </div>
+    <div dcg-obj="content.keywords.desc" dcg-html>
+      <section id="{{_this._key}}">
+        <h1>{{_this.title}}</h1>
+        <p>Token keywords are used for returning object properties of the specified token.</p>
+        <table>
+          <tr><td>_this</td><td>Returns the object itself (especially useful when used inside a template)</td></tr>
+          <tr><td>_key</td><td>Returns the key of the object</td></tr>
+          <tr><td>_index</td><td>Returns the index of the array or object (used inside the iterations)</td></tr>
+          <tr><td>_length</td><td>Returns the total length of the object, array or string</td></tr>
+        </table>
+        <p>Here is an example with outputs.</p>
+        <div class="row lg:gutter-2 mb-6">
+          <div class="column col-12 lg:col-6">
+            <h3 class="mt-0">content.html</h3>
+            <pre><code class="language-html">
+              &lt;div dcg-obj="book" dcg-json>
+                {
+                  "name":"The Name of the Wind",
+                  "author":"Patrick Rothfuss",
+                  "genre":"Heroic fantasy"
+                }
+              &lt;/div>
+
+              &lt;div dcg-obj="actors" dcg-json>
+                [
+                  {"name":"Robert", "surname":"De Niro"},
+                  {"name":"Christopher", "surname":"Walken"},
+                  {"name":"Jack", "surname":"Nicholson"}
+                ]
+              &lt;/div>
+            </code></pre>
+          </div>
+          <div class="column col-12 lg:col-6">
+            <h3 class="mt-0">design.html</h3>
+            <pre><code class="language-html">
+              {{##book._length}} // Returns 3
+              {{##book._this}} // Returns {"name":"The Name of the Wind", "author":"Patrick Rothfuss", "genre":"Heroic fantasy"}
+              {{##book.author._key}} // Returns author
+
+              &lt;dcg dcg-repeat="actors as actor">
+                {{##actor._index}} // Returns 0 to 2 index values
+              &lt;/dcg>
+            </code></pre>
+          </div>
+        </div>
+      </section>
+    </div>
+    <div dcg-obj="content.roots.desc" dcg-html>
+      <section id="{{_this._key}}">
+        <h1>{{_this.title}}</h1>
+        <p>Root tokens are special kind of tokens that for returning premade values.</p>
+        <table>
+          <tr><td>$host</td><td>Returns the host name with protocol: <b>"https://example.com"</b></td></tr>
+          <tr><td>$path</td><td>Returns the full directory path of the current file: <b>"/folder/pics"</b></td></tr>
+          <tr><td>$file</td><td>Returns the current file name with extension: <b>"index.html"</b></td></tr>
+          <tr><td>$query</td><td>Returns the query string: <b>"?page=12&top=all"</b></td></tr>
+          <tr><td>$hash</td><td>Returns the hash: <b>"#id"</b></td></tr>
+          <tr><td>$version</td><td>Returns the version of the DCG: <b>"2.0.2"</b></td></tr>
+        </table>
+      </section>
+    </div>
+    <div dcg-obj="content.escapetokens.desc" dcg-html>
+      <section id="{{_this._key}}">
+        <h1>{{_this.title}}</h1>
+        <p>In order to escape tokens and eval expressions, add '##' right after the opening delimeter like in the below.</p>
+        <div class="row lg:gutter-2 mb-6">
+          <div class="column col-12 lg:col-6">
+            <h3 class="mt-0">design.html</h3>
+            <pre><code class="language-html">
+              &lt;h3>Welcome, {{####customer}}!&lt;/h3>
+            </code></pre>
+          </div>
+        </div>
+      </section>
+    </div>
+    <div dcg-obj="content.escapeelements.desc" dcg-html>
+      <section id="{{_this._key}}">
+        <h1>{{_this.title}}</h1>
+        <p>Escape prefix is used for bypassing invalid HTML errors by escaping tags and attributes.</p>
+        <p>Browsers, process and change couple of special tags and attributes, for example inline <code>style</code> attribute and <code>table</code>, <code>tr</code>, <code>td</code> tags. When you use tokens inside for instance a <code>style</code> attribute, the browsers will only see the unprocessed form of the token and will assume this is a wrong definition and deletes the whole style attribute with the token.</p>
+        <p>But with the escape prefix, browsers will assume this is not an element that should be processed and skips it entirely. After the render, DCG replaces the escaped elements to their original state and elements will be processed automatically by the browsers with the correct values.</p>
+        <p>In order to escape an element you can define <code>dcg:</code> in front of the tag or the attribute.</p>
+        <div class="row lg:gutter-2 mb-6">
+          <div class="column col-12 lg:col-6">
+            <pre><code class="language-html">
+              &lt;dcg:table dcg:style="color:{{##color}}">
+                &lt;dcg:tr>
+                  &lt;dcg:td>This is an escaped table&lt;/dcg:td>
+                &lt;/dcg:tr>
+              &lt;/dcg:table>
+            </code></pre>
+          </div>
+        </div>
+      </section>
+    </div>
+    <div dcg-obj="content.templates.desc" dcg-html>
+      <section id="{{_this._key}}">
+        <h1>{{_this.title}}</h1>
+        <p>Templates are used for minimizing code duplication and for making pages more dynamic. They can take input data either by raw JSON or by indicating a token object.</p>
+        <p>In order to use templates, first you have to reference it with <code>dcg-tref</code> attribute, after that you can render them with <code>dcg-tren</code>. You can also use <code>dcg-data</code> to pass an object to be used as tokens inside the template.</p>
+        <div class="row lg:gutter-2 mb-6">
+          <div class="column col-12 lg:col-6">
+            <h3 class="mt-0">content.html</h3>
+            <pre><code class="language-html">
+              &lt;div dcg-obj="actors" dcg-json>
+                [
+                  {"name":"Robert", "surname":"De Niro"},
+                  {"name":"Christopher", "surname":"Walken"},
+                  {"name":"Jack", "surname":"Nicholson"}
+                ]
+              &lt;/div>
+            </code></pre>
+          </div>
+          <div class="column col-12 lg:col-6">
+            <h3 class="mt-0">design.html</h3>
+            <pre><code class="language-html">
+              &lt;dcg dcg-temp="temp" dcg-tref>
+                &lt;dcg:table>
+
+                  &lt;dcg dcg-repeat="_this as actor">
+
+                    &lt;dcg:tr>
+                      &lt;dcg:td>{{##actor.name}}&lt;/dcg:td>
+                      &lt;dcg:td>{{##actor.surname}}&lt;/dcg:td>
+                    &lt;/dcg:tr>
+                    
+                  &lt;/dcg>
+
+                &lt;/dcg:table>
+              &lt;/dcg>
+
+              &lt;dcg dcg-temp="temp" dcg-tobj="actors" dcg-tren>&lt;/dcg>
+            </code></pre>
+          </div>
+        </div>
+        <p><code>style</code>, <code>link</code> and <code>script</code> tags are allowed inside the templates. This allows us to bundle up everything related to a template into a small package, however there is one quirk, since these tags will be extracted from the reference, you cannot use the dataset tokens of the template inside of these tags.</p>
+        <div class="row lg:gutter-2 mb-6">
+          <div class="column col-12 lg:col-6">
+            <h3 class="mt-0">design.html</h3>
+            <pre><code class="language-html">
+              &lt;dcg dcg-temp="temp" dcg-tref>
+                &lt;style>
+                  .demo {
+                    color:#f00;
+                  }
+                &lt;/style>
+                &lt;div class="demo">TEXT&lt;/div>
+                &lt;script>console.log("testing");&lt;/script>
+              &lt;/dcg>
+            </code></pre>
+          </div>
+        </div>
+        <p>Templates can even be used after the render with <code>dcg.loadTemplate()</code> function. It will return the template as a HTML element.</p>
+        <div class="row lg:gutter-2 mb-6">
+          <div class="column col-12 lg:col-6">
+            <pre><code class="language-js">
+              dcg.loadTemplate({
+                id: "cardTemplate",
+                obj: {"title":"This is the title", "desc":"And this is the description"}
+              }, function (template) {
+                document.body.innerHTML += template.innerHTML;
+              });
+            </code></pre>
+          </div>
+        </div>
+      </section>
+    </div>
+    <div dcg-obj="content.external.desc" dcg-html>
+      <section id="{{_this._key}}">
+        <h1>{{_this.title}}</h1>
+        <p>External contents are self-explanatory, with the <code>dcg-src</code> attribute you can fetch contents, API's or templates from other files or sites.</p>
+        <div class="row lg:gutter-2 mb-6">
+          <div class="column col-12 lg:col-6">
+            <pre><code class="language-html">
+              &lt;div dcg-src="data/content.html">&lt;/div>
+            </code></pre>
+          </div>
+        </div>
+        <p>Here is an example for defining external contents as dynamic contents and as a template.</p>
+        <div class="row lg:gutter-2 mb-6">
+          <div class="column col-12 lg:col-6">
+            <pre><code class="language-html">
+              &lt;div dcg-obj="exchange" dcg-json>
+                &lt;div dcg-src="https://api.exchangerate.host/latest">&lt;/div>
+              &lt;/div>
+              &lt;dcg dcg-temp="temp" dcg-tref>
+                &lt;dcg dcg-src="path/to/template.html">&lt;/dcg>
+              &lt;/dcg>
+            </code></pre>
+          </div>
+        </div>
+        <p>Additionally you can also define the request method and data object with <code>dcg-smet</code> and <code>dcg-sobj</code>.</p>
+        <div class="row lg:gutter-2 mb-6">
+          <div class="column col-12 lg:col-6">
+            <pre><code class="language-html">
+              &lt;div dcg-src="https://reqbin.com/echo/post/json" dcg-smet="POST" dcg-sobj='{"foo":"bar", "page":"33"}'>&lt;/div>
+            </code></pre>
+          </div>
+        </div>
+      </section>
+    </div>
+    <div dcg-obj="content.eval.desc" dcg-html>
+      <section id="{{_this._key}}">
+        <h1>{{_this.title}}</h1>
+        <p>Eval expressions are used for post processing the tokens using the native <code>eval</code> function.</p>
+        <div class="row lg:gutter-2 mb-6">
+          <div class="column col-12 lg:col-6">
+            <h3 class="mt-0">content.html</h3>
+            <pre><code class="language-html">
+              &lt;div dcg-obj="numbers" dcg-json>
+                {
+                  "n1":"65",
+                  "n2":"43"
+                }
+              &lt;/div>
+            </code></pre>
+          </div>
+          <div class="column col-12 lg:col-6">
+            <h3 class="mt-0">design.html</h3>
+            <pre><code class="language-html">
+              &lt;p>
+                Sum: {%## {{##numbers.n1}} + {{##numbers.n2}} %}
+                // Returns 108
+              &lt;/p>
+            </code></pre>
+          </div>
+        </div>
+        <p>You can also define multi-line eval expressions. Multi-line expressions allows us to use JavaScript in its full extend however you have to define a return value.</p>
+        <div class="row lg:gutter-2 mb-6">
+          <div class="column col-12 lg:col-6">
+            <h3 class="mt-0">design.html</h3>
+            <pre><code class="language-html">
+              &lt;p>
+                Sum: {!%##
+                    var result = {{##numbers.n1}} + {{##numbers.n2}};
+                    return result;
+                  %!}
+                // Returns 108
+              &lt;/p>
+            </code></pre>
+          </div>
+        </div>
+        <p><b>Warning:</b> Be careful while using eval expressions. Eval expressions are basically an encapsulated function in a string form and they cannot be sanitized in anyway, if you write an unsanitized user inputted data inside the eval expressions, it can be compromised so use only the tokens and data that you are absolutely sure that is safe to run on client-side.</p>
+      </section>
+    </div>
+    <div dcg-obj="content.conditional.desc" dcg-html>
+      <section id="{{_this._key}}">
+        <h1>{{_this.title}}</h1>
+        <p><code>dcg-if</code> attribute is used for conditional rendering. Conditional rendering allows us to do complicated renders based on conditions.</p>
+        <p>You can use tokens inside the conditions but don't forget to add quotes around the tokens if you are making a string comparison.</p>
+        <div class="row lg:gutter-2 mb-6">
+          <div class="column col-12 lg:col-6">
+            <h3 class="mt-0">design.html</h3>
+            <pre><code class="language-html">
+              &lt;dcg dcg-repeat="students as student">
+                &lt;dcg dcg-if="{{##student.grade}} >= 50">
+                  &lt;span style="color:green;">PASS&lt;/span>
+                &lt;/dcg>
+                &lt;dcg dcg-if="{{##student.grade}} &lt; 50">
+                  &lt;span style="color:red;">FAIL&lt;/span>
+                &lt;/dcg>
+              &lt;/dcg>
+            </code></pre>
+          </div>
+        </div>
+        <p><b>Warning:</b> Same as eval expressions, conditional rendering uses the native <code>eval</code> function. So use only the tokens and data that you are absolutely sure that is safe to run on client-side.</p>
+      </section>
+    </div>
+    <div dcg-obj="content.screen.desc" dcg-html>
+      <section id="{{_this._key}}">
+        <h1>{{_this.title}}</h1>
+        <p>During the render, unmodified content elements are the first thing the users see and it may look bad even if its only for just a split second. In order to prevent that, we use <code>screenBlock</code> preset option.</p>
+        <p>Default screen block is just a white screen and it is dynamically loaded. If you want a custom screen block, you can define it with <code>dcg-screen</code> attribute like in the below.</p>
+        <div class="row lg:gutter-2 mb-6">
+          <div class="column col-12 lg:col-6">
+            <h3 class="mt-0">content.html</h3>
+            <pre><code class="language-html">
+              &lt;div class="loading-screen" dcg-screen>Custom Screen Block&lt;/div>
+
+              &lt;script>
+                dcg.render({
+                  designSrc: "path/to/design.html",
+                  options: {
+                    screenBlock: true
+                  }
+                });
+              &lt;/script>
+            </code></pre>
+          </div>
+        </div>
+        <p>With that said, you can also choose the way how screen block is removed. There are 3 modes of hiding: first one is entirely removes the screen block element, second one adds a display none style to the element and the last one is for custom hiding method where you define an additional function to hide the screen block.</p>
+        <p>Modes are defined with an integer and starts from 0. Default hiding method removes the entire element (mode 0). Here is an example further demonstrating the custom screen blocks.</p>
+        <div class="row lg:gutter-2 mb-6">
+          <div class="column col-12 lg:col-6">
+            <h3 class="mt-0">content.html</h3>
+            <pre><code class="language-html">
+              &lt;div class="loading-screen" dcg-screen>Custom Loading Screen&lt;/div>
+
+              &lt;script>
+                dcg.render({
+                  designSrc: "path/to/design.html",
+                  options: {
+                    screenBlock: true,
+                    screen: {
+                      mode: 2, // mode 2 is the custom method
+                      custom: function(el){ //custom hiding function
+                        $(el).fadeOut("normal", function() {
+                          $(el).remove();
+                        });
+                      }
+                    }
+                  }
+                });
+              &lt;/script>
+            </code></pre>
+          </div>
+        </div>
+        <p><b>Note:</b> If you use the default screen block, you may still see the unmodified content for couple of miliseconds. Thats because it is defined dynamically with JavaScript and since scripts have to be executed after all of the document is loaded, it takes a small but noticible amount of time to screen block to takes effect. So manually defining custom screen blocks are the best way to be sure.</p>
+      </section>
+    </div>
+    <div dcg-obj="content.singlepage.desc" dcg-html>
+      <section id="{{_this._key}}">
+        <h1>{{_this.title}}</h1>
+        <p>Single page renders are used if you don't want to mess with a design page. On these renders, render occurs on the same page but instead of defining other script files with the script tag (like normally you would do), you have to define them with the <code>scripts</code> preset option. You can also use the <code>after()</code> function to execute scripts.</p>
+        <p>The reason for that change is, since DCG acts like a preprocessor, it breaks the execution flow with async XHR calls and DOM modifications. In this situation, there are only 2 ways to satisfy the execution flow, either you have to modify the other scripts to be compatible with the DCG (which is not possible for every script or library) or all of the scripts are manually executed after the render (which thats what we are trying to accomplish here).</p>
+        <div class="row lg:gutter-2 mb-6">
+          <div class="column col-12 lg:col-6">
+            <pre><code class="language-html">
+              &lt;script src="dcg.js">&lt;/script>
+              &lt;script>
+                dcg.render({
+                  options: {
+                    injectScripts: ["scriptfile.js", "otherscriptfile.js"] //external script files
+                  },
+                  after: function() {
+                    //your script goes here
+                  }
+                });
+              &lt;/script>
+            </code></pre>
+          </div>
+        </div>
+      </section>
+    </div>
+    <div dcg-obj="content.support.desc" dcg-html>
+      <section id="{{_this._key}}">
+        <h1>{{_this.title}}</h1>
+        <p>Tested on IE 11, latest Chrome, Firefox and Safari.</p>
+      </section>
+    </div>
+
+    <script src="../dist/dcg.js"></script>
+    <script>
+      dcg.render({
+        designSrc: "design.html",
+        options: {
+          cacheRender: true,
+          screenBlock: true,
+          showLogs: false,
+        }
+      });
+    </script>
+  </body>
+</html>
