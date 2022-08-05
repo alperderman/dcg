@@ -1,5 +1,5 @@
 /*!
-* Dynamic Content Generation (2.0.4) 2022/07/27
+* Dynamic Content Generation (2.1.0) 2022/08/05
 */
 
 //polyfills
@@ -14,7 +14,7 @@ if (!Object.values) { Object.values = function values(obj) { var res = []; for (
 if (typeof window.CustomEvent !== 'function') { window.CustomEvent = function (event, params) { params = params || {bubbles: false, cancelable: false, detail: null}; var evt = document.createEvent('CustomEvent'); evt.initCustomEvent(event, params.bubbles, params.cancelable, params.detail); return evt; }; }
 
 var dcg = {}; //main object
-dcg.version = "2.0.4"; //version number
+dcg.version = "2.1.0"; //version number
 dcg.logPrefix = "[DCG] "; //log prefix
 dcg.default = { //default presets
     labelObj: "dcg-obj", //dynamic content attribute
@@ -38,7 +38,6 @@ dcg.default = { //default presets
     evalClose: "%}", //closing delimiter for eval expressions
     evalMultiOpen: "{!%", //opening delimiter for multi-line eval expressions
     evalMultiClose: "%!}", //closing delimiter for multi-line eval expressions
-    injectScripts: [], //for injecting external scripts
     onloadEvents: [], //for defining custom onload events
     replaceHead: false, //for whether if head is appended or replaced completely with the design's head
     cacheRender: true, //for caching the render
@@ -83,7 +82,6 @@ dcg.watchTimeRun = false;
 dcg.evalFunc = undefined; //empty function for running eval expressions
 //static config variables
 dcg.renderReady = false; //for checking if the render is done
-dcg.renderDom = false; //for checking if the render will be on the current document
 dcg.init = function () { //function for initializing the framework
     dcg.reset();
 };
@@ -96,7 +94,6 @@ dcg.config = function (options) { //function for setting custom presets
     dcg.reconstruct();
 };
 dcg.reset = function () { //function for resetting the presets to their default values
-    dcg.renderDom = false;
     dcg.profile = dcg.mergeDeep(dcg.default, dcg.profile);
     dcg.reconstruct();
 };
@@ -167,7 +164,7 @@ dcg.watchPrintSplit = function (text, showTime, total) { //function for splittin
     dcg.watchPrint(text, showTime, total);
     dcg.watchSplit();
 };
-dcg.render = function (arg) { //wrapper for renderDesign function, inputs are: arg.options, arg.content, arg.contentSrc, arg.design, arg.designSrc, arg.before, arg.after
+dcg.render = function (arg) { //wrapper for renderDesign function, inputs are: arg.options, arg.design, arg.before, arg.after
     var result;
     step_start();
     function step_start() { //start the render wrapper
@@ -186,22 +183,7 @@ dcg.render = function (arg) { //wrapper for renderDesign function, inputs are: a
         if (dcg.profile.showLogs) {
             console.log(dcg.logPrefix+"Version: "+dcg.version);
         }
-        if (arg.content == null) { //if the content and the contentSrc is null then reference the current document as the content
-            if (arg.contentSrc == null) {
-                dcg.renderDom = true;
-                step_content(document);
-            } else {
-                dcg.xhr(arg.contentSrc, function (xhr) {
-                    if (xhr.readyState == 4) {
-                        if (xhr.status == 200) {
-                            step_content(xhr.responseText);
-                        }
-                    }
-                });
-            }
-        } else {
-            step_content(arg.content);
-        }
+        step_design();
     }
     function screen_block() { //add screen block element if there is none
         var elScreen, elNewScreen;
@@ -213,48 +195,24 @@ dcg.render = function (arg) { //wrapper for renderDesign function, inputs are: a
             document.body.appendChild(elNewScreen);
         }
     }
-    function step_content(doc) { //get the content
-        var content;
-        if (typeof doc === 'string') { //if the content is external then create new document and parse the content
-            content = document.implementation.createHTMLDocument("Content");
-            if((/\<\/html\>/).test(doc)){
-                content.documentElement.innerHTML = doc;
-            } else if ((/\<\/body\>/).test(doc)) {
-                content.documentElement.innerHTML = content.documentElement.innerHTML.replace("<body", "<body"+doc.match("<body" + "(.*)" + ">")[1]);
-                content.body.innerHTML = doc.match(dcg.regexBody)[1];
-            } else {
-                content.body.innerHTML = doc;
-            }
-        } else {
-            content = doc;
-        }
-        step_design(content);
-    }
-    function step_design(content) { //get the design
-        var design, designSrc;
-        if (arg.design == null) { //if the design is null then check for the external source in the designSrc
-            if (arg.designSrc == null) {
-                design = false;
-                step_render(content, design);
-            } else {
-                designSrc = arg.designSrc;
-                dcg.xhr(designSrc, function (xhr) {
-                    if (xhr.readyState == 4) {
-                        if (xhr.status == 200) {
-                            design = xhr.responseText;
-                            step_render(content, design);
-                        }
+    function step_design() { //get the design
+        var design;
+        if (arg.design != null) {
+           dcg.xhr(arg.design, function (xhr) {
+                if (xhr.readyState == 4) {
+                    if (xhr.status == 200) {
+                        design = xhr.responseText;
+                        step_render(design);
+                    } else {
+                        dcg.watchPrint('ERROR: Couldn\'t find design at "'+arg.design+'"' , false);
                     }
-                });
-            }
-        } else { //if the design is defined then pass it directly
-            design = arg.design;
-            step_render(content, design);
+                }
+            });
         }
     }
-    function step_render(content, design) { //render the design with the given arguments
+    function step_render(design) { //render the design with the given arguments
         dcg.renderDesign({
-            content: content,
+            content: document,
             design: design,
             after: arg.after,
             callback: function (render) {
@@ -269,11 +227,7 @@ dcg.renderDesign = function (arg) { //main render function, inputs are: arg.cont
     function step_start() { //start the time and render
         dcg.watchStart();
         dcg.watchPrint("Render is started!", false);
-        if (arg.design !== false) { //if design is not defined then skip the design procedure
-            step_design();
-        } else {
-            recursive_parse();
-        }
+        step_design();
     }
     function step_design() { //insert the design
         var i, designScripts;
@@ -428,28 +382,17 @@ dcg.renderDesign = function (arg) { //main render function, inputs are: arg.cont
         }, 0);
     }
     function step_inject() { //inject the scripts
-        dcg.loadScripts(dcg.profile.injectScripts, function () { //load the external scripts
-            if (dcg.profile.injectScripts.length > 0) {
-                dcg.watchPrintSplit("External scripts are injected!");
-            }
-            if (dcg.renderDom && arg.design !== false) { //load the scripts of the design
-                dcg.loadScriptsNS(arg.content.body.getElementsByTagName("script"), function () {
-                    dcg.watchPrintSplit("Design scripts are injected!");
-                    step_detail();
-                });
-            } else {
-                step_detail();
-            }
+        dcg.loadScriptsNS(arg.content.body.getElementsByTagName("script"), function () {
+            dcg.watchPrintSplit("Scripts are injected!");
+            step_detail();
         });
     }
     function step_detail() { //if render is not occured on the virtual dom then jump to anchor and dispatch onload events
-        if (dcg.renderDom) {
-            if (window.location.hash.slice(1) && arg.content.getElementById(window.location.hash.slice(1))) {
-                arg.content.getElementById(window.location.hash.slice(1)).scrollIntoView();
-            }
-            dcg.watchPrintSplit("Dispatching the onload events!");
-            dcg.DOMLoad();
+        if (window.location.hash.slice(1) && arg.content.getElementById(window.location.hash.slice(1))) {
+            arg.content.getElementById(window.location.hash.slice(1)).scrollIntoView();
         }
+        dcg.watchPrintSplit("Dispatching the onload events!");
+        dcg.DOMLoad();
         step_finish();
     }
     function step_finish() { //stop the time, print the total elapsed time, remove the screen block and run after function

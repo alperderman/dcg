@@ -33,7 +33,6 @@
         "eval": {"title": "Eval Expressions"},
         "conditional": {"title": "Conditional Rendering"},
         "screen": {"title": "Screen Block"},
-        "singlepage": {"title": "Single Page Renders"},
         "support": {"title": "Browser Support"}
       }
     </div>
@@ -62,7 +61,7 @@
                 &lt;script src="path/to/dcg.js">&lt;/script>
                 &lt;script>
                   dcg.render({
-                    designSrc: "path/to/design.html"
+                    design: "path/to/design.html"
                   });
                 &lt;/script>
               &lt;/body>
@@ -77,7 +76,7 @@
             </code></pre>
           </div>
         </div>
-        <p><code>designSrc</code> indicates the path of the <code>design.html</code>.</p>
+        <p><code>design</code> indicates the path of the <code>design.html</code>.</p>
       </section>
     </div>
     <div dcg-obj="content.parameters.desc" dcg-html>
@@ -92,10 +91,7 @@
             </tr>
           </thead>
           <tbody>
-            <tr><td><b>content</b></td><td>Parameter for defining content, you can set the content as string or an HTML element, if isn't defined then DCG checks for the <code>contentSrc</code> parameter for external content</td></tr>
-            <tr><td><b>contentSrc</b></td><td>Parameter for defining external content, if it is not defined then sets the content as the current document</td></tr>
-            <tr><td><b>design</b></td><td>Parameter for defining design, you can set the design as string, if isn't defined then DCG checks for the <code>designSrc</code> parameter for external design</td></tr>
-            <tr><td><b>designSrc</b></td><td>Parameter for defining external design, if it is not defined then sets the content as the current design and render occurs on the same page. Read the <b>Single Page Renders</b> section for more details</td></tr>
+            <tr><td><b>design</b></td><td>Parameter for defining path of the design</td></tr>
             <tr><td><b>before()</b></td><td>Function parameter for defining a function that will run before the render, usually not needed but included for the sake of consistency</td></tr>
             <tr><td><b>after()</b></td><td>Function parameter for defining a function that will run after the render</td></tr>
             <tr><td><b>options</b></td><td>Parameter for the preferences, explained on the <b>Preset Options</b> section</td></tr>
@@ -121,7 +117,6 @@
             <tr><td><b>showLogs</b></td><td>For showing the render logs</td><td>false</td><td>Boolean</td></tr>
             <tr><td><b>screenBlock</b></td><td>For blocking the screen during the render, check out the <b>Screen Block</b> section for more details</td><td>true</td><td>Boolean</td></tr>
             <tr><td><b>replaceHead</b></td><td>for whether if head of the content is appended or replaced completely by the design's head</td><td>false</td><td>Boolean</td></tr>
-            <tr><td><b>injectScripts</b></td><td>For injecting external scripts</td><td>[]</td><td>Array of strings / string</td></tr>
             <tr><td><b>onloadEvents</b></td><td>For defining custom onload events that will be dispatched after imitating window onload event</td><td>[]</td><td>Array of objects</td></tr>
           </tbody>
         </table>
@@ -133,13 +128,12 @@
               &lt;script src="path/to/dcg.js">&lt;/script>
               &lt;script>
                 dcg.render({
-                  designSrc: "path/to/design.html",
+                  design: "path/to/design.html",
                   options: {
                     showLogs: true,
                     cacheRender: false,
                     screenBlock: false,
                     replaceHead: true,
-                    injectScripts: ["script1.js", "../script2.js"],
                     onloadEvents: [{node: window, name: "customevent1"}, {node: document, name: "customevent2"}]
                   }
                 });
@@ -182,7 +176,7 @@
                 &lt;script src="path/to/dcg.js">&lt;/script>
                 &lt;script>
                   dcg.render({
-                    designSrc: "path/to/design.html"
+                    design: "path/to/design.html"
                   });
                 &lt;/script>
               &lt;/body>
@@ -507,7 +501,7 @@
 
               &lt;script>
                 dcg.render({
-                  designSrc: "path/to/design.html",
+                  design: "path/to/design.html",
                   options: {
                     screenBlock: true
                   }
@@ -526,7 +520,7 @@
 
               &lt;script>
                 dcg.render({
-                  designSrc: "path/to/design.html",
+                  design: "path/to/design.html",
                   options: {
                     screenBlock: true,
                     screen: {
@@ -546,30 +540,6 @@
         <p><b>Note:</b> If you use the default screen block, you may still see the unmodified content for couple of miliseconds. Thats because it is defined dynamically with JavaScript and since scripts have to be executed after all of the document is loaded, it takes a small but noticible amount of time to screen block to takes effect. So manually defining custom screen blocks are the best way to be sure.</p>
       </section>
     </div>
-    <div dcg-obj="content.singlepage.desc" dcg-html>
-      <section id="{{_this._key}}">
-        <h1>{{_this.title}}</h1>
-        <p>Single page renders are used if you don't want to mess with a design page. On these renders, render occurs on the same page but instead of defining other script files with the script tag (like normally you would do), you have to define them with the <code>scripts</code> preset option. You can also use the <code>after()</code> function to execute scripts.</p>
-        <p>The reason for that change is, since DCG acts like a preprocessor, it breaks the execution flow with async XHR calls and DOM modifications. In this situation, there are only 2 ways to satisfy the execution flow, either you have to modify the other scripts to be compatible with the DCG (which is not possible for every script or library) or all of the scripts are manually executed after the render (which thats what we are trying to accomplish here).</p>
-        <div class="row lg:gutter-2 mb-6">
-          <div class="column col-12 lg:col-6">
-            <pre><code class="language-html">
-              &lt;script src="dcg.js">&lt;/script>
-              &lt;script>
-                dcg.render({
-                  options: {
-                    injectScripts: ["scriptfile.js", "otherscriptfile.js"] //external script files
-                  },
-                  after: function() {
-                    //your script goes here
-                  }
-                });
-              &lt;/script>
-            </code></pre>
-          </div>
-        </div>
-      </section>
-    </div>
     <div dcg-obj="content.support.desc" dcg-html>
       <section id="{{_this._key}}">
         <h1>{{_this.title}}</h1>
@@ -580,7 +550,7 @@
     <script src="../dist/dcg.js"></script>
     <script>
       dcg.render({
-        designSrc: "design.html",
+        design: "design.html",
         options: {
           cacheRender: true,
           screenBlock: true,
